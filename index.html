@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>System Integrators Simulator — Phase 1.5</title>
+<title>System Integrators Simulator</title>
+<meta name="description" content="A side-scrolling game about wiring a Vermont smart home, from rough-in to landscape lighting. Made by System Integrators Vermont.">
+<meta property="og:title" content="System Integrators Simulator">
+<meta property="og:description" content="Wire a Vermont smart home, from rough-in to landscape lighting.">
+<meta property="og:image" content="assets/bg-title.jpg">
 <style>
   :root { --orange: #e8761f; --hud-bg: rgba(20, 26, 34, 0.78); --hud-text: #f0eee4; }
   * { box-sizing: border-box; }
@@ -39,6 +43,7 @@
   #timer-display { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0.06em; font-size: 1.05em; }
   #timer-display.urgent { color: #ff7a5a; animation: pulse 0.8s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  body:not(.playing) #level-card { visibility: hidden; }
   #progress { width: clamp(80px, 14vw, 160px); height: 3px; background: rgba(255,255,255,0.18); border-radius: 2px; overflow: hidden; }
   #progress-fill { height: 100%; width: 0%; background: var(--orange); transition: width 120ms linear; }
   #lives { display: flex; gap: 4px; align-items: center; padding: 6px 10px; }
@@ -155,7 +160,6 @@
 <body>
 <div id="stage">
   <div id="frame">
-    <div class="badge">Phase 1.5 · System Integrators Simulator</div>
     <canvas id="game"></canvas>
 
     <div id="hud">
@@ -169,6 +173,11 @@
         <div id="score"><span class="score-label">SCORE</span><span id="score-val">0</span></div>
       </div>
       <audio id="bgm" src="assets/paper-lanterns.mp3" loop preload="auto" style="display:none;"></audio>
+      <div class="hud-card" id="level-card">
+        <span class="name" id="level-name"></span>
+        <span id="timer-display">2:00</span>
+        <div id="progress"><div id="progress-fill"></div></div>
+      </div>
       <div class="hud-card" id="lives">
         <div class="life">&#x2665;</div><div class="life">&#x2665;</div><div class="life">&#x2665;</div>
       </div>
@@ -933,6 +942,8 @@
       }
       return;
     }
+    // Let the name field receive spaces and arrow keys
+    if (e.target instanceof HTMLInputElement) return;
     const k = KEYMAP[e.code]; if (!k) return;
     keys[k] = true;
     // Up arrow / W also jumps (when not on a ladder, climb logic intercepts up)
@@ -2617,10 +2628,12 @@
           player.vx = dir * 4;
           player.vy = -4;
           player.invuln = 60;
-          lives--;
-          updateLivesHud();
-          if (lives <= 0) {
-            loseLife(); // triggers game-over flow
+          if (lives <= 1) {
+            loseLife(); // last life: loseLife() decrements and runs game over
+          } else {
+            lives--;
+            updateLivesHud();
+            sfxDeath();
           }
           break;
         }
@@ -2696,6 +2709,10 @@
     }).catch(() => {});
     return optimistic;
   }
+  // Names come from a shared sheet anyone can post to, so never trust them as HTML.
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+  }
   // Build the top-5 leaderboard HTML markup. Pass a name+score to highlight a specific row.
   function _leaderboardHtml(highlightName, highlightScore, showTitle) {
     const lb = getLeaderboardCached().slice(0, 5);
@@ -2716,7 +2733,7 @@
       if (isYou) highlightedYet = true;
       html += '<tr class="' + (isYou ? 'you' : '') + '">' +
         '<td class="rank">' + (i + 1) + '.</td>' +
-        '<td class="name">' + (entry.name || '—') + '</td>' +
+        '<td class="name">' + escapeHtml(entry.name || '—') + '</td>' +
         '<td class="score">' + entry.score.toLocaleString() + '</td>' +
         '</tr>';
     });
@@ -4025,7 +4042,7 @@
   const _ni = document.getElementById('name-input');
   if (_ni) {
     _ni.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); window.__nameNext(); }
+      if (e.key === 'Enter') { e.preventDefault(); window.__startGame(); }
     });
   }
 
@@ -4040,10 +4057,23 @@
     }
   }
 
-  function frameLoop() {
-    update();
+  // Fixed 60 Hz simulation. Physics, the level timer and every animation count
+  // in update() ticks, so stepping once per display refresh ran the whole game
+  // at double speed on 120 Hz screens. Rendering still happens every refresh.
+  const STEP_MS = 1000 / 60;
+  let _lastT = null, _acc = 0;
+  function frameLoop(now) {
+    if (_lastT === null) _lastT = now;
+    // Clamp so a backgrounded tab doesn't fast-forward on return
+    _acc += Math.min(now - _lastT, 250);
+    _lastT = now;
+    while (_acc >= STEP_MS) {
+      update();
+      if (state === STATE.TITLE) advanceTitlePhase();
+      _acc -= STEP_MS;
+    }
+    document.body.classList.toggle('playing', state !== STATE.TITLE);
     if (state === STATE.TITLE) {
-      advanceTitlePhase();
       drawTitleScreen();
       requestAnimationFrame(frameLoop);
       return;
@@ -4106,7 +4136,12 @@
     drawPlayer();
     // Foreground beams render AFTER the player so the player passes behind them
     drawBeams();
-    // ===== Debug FPS overlay (REV 9 perf debug) =====
+    if (DEBUG) drawFps();
+    requestAnimationFrame(frameLoop);
+  }
+  // FPS readout, only with ?debug in the URL
+  const DEBUG = new URLSearchParams(location.search).has('debug');
+  function drawFps() {
     if (!frameLoop._fpsState) frameLoop._fpsState = { frames: 0, lastT: performance.now(), fps: 0 };
     const _fps = frameLoop._fpsState;
     _fps.frames++;
@@ -4124,8 +4159,6 @@
     ctx.textBaseline = 'top';
     ctx.fillText('FPS: ' + _fps.fps.toFixed(1), VIRT_W - 100, 8);
     ctx.restore();
-    // ===== end FPS overlay =====
-    requestAnimationFrame(frameLoop);
   }
   resetLevel(true);
   requestAnimationFrame(frameLoop);
