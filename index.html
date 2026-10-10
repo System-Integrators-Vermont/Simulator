@@ -47,6 +47,10 @@
   body:not(.playing) #level-card, body:not(.playing) #score,
   body:not(.playing) #lives, body:not(.playing) #home-btn { visibility: hidden; }
   body.touch .keys { display: none; }
+  #relaxed-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: clamp(11px, 1.4vw, 14px); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; pointer-events: auto; }
+  #relaxed-row input { accent-color: var(--orange); width: 16px; height: 16px; }
+  #relaxed-row span { opacity: 0.55; text-transform: none; letter-spacing: 0.02em; }
+  @media (max-height: 500px) { #relaxed-row { margin-top: 6px; } #relaxed-row span { display: none; } }
   #rotate-hint { display: none; }
   @media (orientation: portrait) and (max-width: 820px) {
     body.touch #rotate-hint { display: block; position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; text-align: center; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); }
@@ -232,9 +236,9 @@
 
     <div class="overlay hidden" id="title-overlay">
       <h1>What is your name?</h1>
-      <p style="opacity:0.7;font-style:italic;margin-top:6px;margin-bottom:14px;">(Your name and score will be on the leaderboard)</p>
+      <p style="opacity:0.7;font-style:italic;margin-top:6px;margin-bottom:14px;">(Optional. Add a name to post your score to the leaderboard)</p>
       <div id="name-row">
-        <input id="name-input" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Enter your name" />
+        <input id="name-input" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Your name" />
       </div>
       <h1 style="margin-top:24px;">Choose a player</h1>
       <div id="picker-tiles">
@@ -242,6 +246,7 @@
         <div class="picker-tile selected" data-pick="they" id="tile-they"><img id="prev-they" alt="They/Them" /></div>
         <div class="picker-tile" data-pick="he" id="tile-he"><img id="prev-he" alt="He/Him" /></div>
       </div>
+      <label id="relaxed-row"><input type="checkbox" id="relaxed-input"> Relaxed mode <span>No clock, unlimited lives, off the leaderboard</span></label>
       <div class="keys">
         <span><kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> Move</span>
         <span><kbd>Space</kbd> or <kbd>↑</kbd> Jump</span>
@@ -954,6 +959,12 @@
     'Space':'jump'
   };
   window.addEventListener('keydown', (e) => {
+    // Enter or Space moves through the intro and end screens
+    if ((e.code === 'Enter' || e.code === 'Space') && !(e.target instanceof HTMLInputElement)) {
+      const intro = document.getElementById('intro-overlay');
+      if (state === STATE.TITLE && intro && !intro.classList.contains('hidden')) { e.preventDefault(); window.__introStart(); return; }
+      if (state === STATE.END && e.code === 'Enter') { e.preventDefault(); document.getElementById('again-btn').click(); return; }
+    }
     if (e.code === 'Escape') {
       const homeEl = document.getElementById('home-overlay');
       if (homeEl && !homeEl.classList.contains('hidden')) {
@@ -1046,18 +1057,21 @@
     // Phone — picking it up "lights up" the tree at the player's tree.
     // Per-collectible `treeId` field tells drawTrees which tree to swap to lit.
     phone:       { sprite: 'phone',       points: 100 },
+    // Hidden SI badge, one per level, off the main route (Celeste strawberries)
+    badge:       { drawProc: 'badge',     points: 500 },
   };
 
   const KEYPAD_POINTS = 200;
   // Which run-summary line each pickup counts toward
   const STAT_FOR_TYPE = {
     wire: 'wire', wireGrey: 'wire', hammer: 'tools', cutter: 'tools', cutterNight: 'tools',
-    light: 'lights', phone: 'trees',
+    light: 'lights', phone: 'trees', badge: 'badges',
   };
 
   const LEVELS = [
   {
     "name": "Rough In",
+    "goalText": "Pull wire through the framing and reach the front door",
     "width": 8500,
     "spawnX": 800,
     "minX": -1400,
@@ -1413,6 +1427,7 @@
         "t": "hammer"
       }
     ],
+    "secretBadge": { "x": -520, "y": 110 },
     "hazards": [
       { "type": "spool", "x": 3200, "y": 404, "w": 48, "h": 60, "minX": 2760, "maxX": 3960, "vx": 2.4 },
       { "type": "spool", "x": 4700, "y": 404, "w": 48, "h": 60, "minX": 4400, "maxX": 5200, "vx": -2.8 },
@@ -1432,6 +1447,7 @@
   },
   {
     "name": "Trim Out",
+    "goalText": "Carry each TV and speaker to its mount",
     "width": 9680,
     "spawnX": 200,
     "theme": "trim-out",
@@ -1487,6 +1503,7 @@
       { "t": "tv",      "x": 9350, "y": 230 }
     ],
     "checkpoints": [2720, 4640, 5780, 7280],
+    "secretBadge": { "x": 4790, "y": 150 },
     "bgSections": [
       { "type": "exterior", "bg": "Lv2_Exterior",   "x": 0,    "w": 1280 },
       { "type": "interior", "bg": "Lv2_GrandEntry", "x": 1280, "w": 960  },
@@ -1515,6 +1532,7 @@
   },
   {
     "name": "Landscape Lighting",
+    "goalText": "Set the fixtures and grab the phones to light the trees",
     "width": 8000,
     "spawnX": 200,
     "theme": "night",
@@ -1928,6 +1946,7 @@
       }
     ],
     "checkpoints": [2000, 4000, 6000],
+    "secretBadge": { "x": 3120, "y": 150 },
     "goal": {
       "x": 7558,
       "y": 304,
@@ -1958,9 +1977,11 @@
   function buildCommissioningLevel(base) {
     const lvl = JSON.parse(JSON.stringify(base));
     lvl.name = 'Commissioning';
+    lvl.goalText = 'Jump to each keypad to bring the house to life';
     lvl.theme = 'commissioning';
     lvl.collectiblesInit = [];
     lvl.installs = [];
+    lvl.secretBadge = { x: 7740, y: 200 }; // above the king bed
     lvl.keypads = lvl.bgSections
       .filter(sec => sec.type === 'interior')
       .map(sec => ({ x: sec.x + 70, y: 272, w: 32, h: 32, room: sec.bg, ...(KEYPAD_SPOTS[sec.bg] || {}) }));
@@ -1995,11 +2016,85 @@
   let respawnX = 0;                     // furthest checkpoint reached this level
   let floatTexts = [];                  // "+25" pop-ups
   function newRunStats() {
-    return { wire: 0, tools: 0, tvs: 0, speakers: 0, lights: 0, trees: 0, keypads: 0, callbacks: 0 };
+    return { wire: 0, tools: 0, tvs: 0, speakers: 0, lights: 0, trees: 0, keypads: 0, badges: 0, callbacks: 0 };
   }
   let runStats = newRunStats();
   function popText(x, y, text, color) {
     floatTexts.push({ x, y, text, color: color || '#f7e08a', t: 0 });
+  }
+
+  // ---------- Feedback: particles, hit-stop, shake, flash ----------
+  const reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let particles = [];
+  let hitStop = 0;      // frames the simulation holds still after a hit
+  let shake = 0;        // frames of screen shake left
+  let hurtFlash = 0;    // frames of red flash left
+  let respawnTimer = 0; // frames of the death beat before respawning
+  let levelCard = 0;    // frames left on the level intro card
+  // One-time hints the first time you meet something new (World 1-1 style)
+  const hintsShown = new Set();
+  let hintText = '', hintTimer = 0;
+  function hint(key, text) {
+    if (hintsShown.has(key)) return;
+    hintsShown.add(key);
+    hintText = text; hintTimer = 200;
+  }
+  let relaxed = false;  // Relaxed mode: no clock, lives never run out
+  try { relaxed = localStorage.getItem('punchlist.relaxed') === '1'; } catch (e) {}
+  function spawnParticles(x, y, n, o) {
+    for (let i = 0; i < n; i++) {
+      const a = (o.angle != null ? o.angle : -Math.PI / 2) + (Math.random() - 0.5) * (o.spread || Math.PI * 2);
+      const sp = (o.speed || 3) * (0.5 + Math.random() * 0.7);
+      particles.push({
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        g: o.gravity != null ? o.gravity : 0.15, life: o.life || 30, t: 0,
+        size: o.size || 4, color: o.color || '#ffffff',
+      });
+    }
+  }
+  // Dust kicked up at the feet; amp 0..1 scales with fall speed
+  function puff(x, y, n, amp) {
+    for (let i = 0; i < n; i++) {
+      const dir = i % 2 ? 1 : -1;
+      particles.push({
+        x: x + dir * (4 + Math.random() * 10), y: y - 2,
+        vx: dir * (1 + Math.random() * 2.5) * (0.6 + amp), vy: -(0.4 + Math.random() * 1.4) * amp,
+        g: 0.04, life: 22 + (Math.random() * 10 | 0), t: 0, size: 5 + (Math.random() * 3 | 0),
+        color: LEVEL_DUST[LEVELS[currentLevel].theme] || '#e2d6bc',
+      });
+    }
+  }
+  const LEVEL_DUST = { 'rough-in': '#d9c39a', 'trim-out': '#e8dcc6', 'night': '#6f7f74', 'commissioning': '#cfc3ad' };
+  const PICKUP_COLOR = {
+    wire: '#f2c94c', wireGrey: '#c9ced6', hammer: '#d8d8d8', cutter: '#ff7a5a', cutterNight: '#ff7a5a',
+    light: '#ffe9a8', phone: '#9fd3ff', tv: '#ffffff', speaker: '#ffffff', badge: '#ff9a3d',
+  };
+  function sparkle(x, y, color, n) {
+    spawnParticles(x, y, n || 10, { color, speed: 3.2, gravity: 0.08, life: 26, size: 4 });
+  }
+  function celebrate(x, y) {
+    spawnParticles(x, y, 14, { color: '#e8761f', speed: 4, gravity: 0.1, life: 34, size: 5 });
+    spawnParticles(x, y, 10, { color: '#fff4d6', speed: 3, gravity: 0.06, life: 30, size: 4 });
+  }
+  // Getting hurt: brief freeze, a small shake, red flash and a buzz on phones
+  function impact() {
+    hitStop = 5;
+    if (!reducedMotion) { shake = 10; hurtFlash = 14; }
+    spawnParticles(player.x + player.w / 2, player.y + player.h / 2, 12, { color: '#ff6a4d', speed: 4.5, gravity: 0.12, life: 24, size: 4 });
+    try { if (navigator.vibrate && document.body.classList.contains('touch')) navigator.vibrate(60); } catch (e) {}
+  }
+  function updateParticles() {
+    for (const q of particles) { q.t++; q.x += q.vx; q.y += q.vy; q.vy += q.g; q.vx *= 0.97; }
+    particles = particles.filter(q => q.t < q.life);
+  }
+  function drawParticles() {
+    for (const q of particles) {
+      ctx.globalAlpha = Math.max(0, 1 - q.t / q.life);
+      ctx.fillStyle = q.color;
+      const sz = Math.max(1, Math.round(q.size * (1 - q.t / (q.life * 1.6))));
+      ctx.fillRect(Math.round(q.x - camX - sz / 2), Math.round(q.y - sz / 2), sz, sz);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Procedural decor (regenerated per level)
@@ -2147,12 +2242,17 @@
     ladders   = lvl.ladders.slice();
     litTrees.clear();  // each level starts with all trees dark again
     collectibles = lvl.collectiblesInit.map(c => ({ ...c, taken: false, bob: Math.random() * Math.PI * 2 }));
+    if (lvl.secretBadge) collectibles.push({ ...lvl.secretBadge, t: 'badge', taken: false, bob: 0 });
     hazards   = lvl.hazards.map(h => ({ ...h, phase: Math.random() * Math.PI * 2, t: 0 }));
     installs  = (lvl.installs || []).map(m => ({ ...m, done: false }));
     keypads   = (lvl.keypads || []).map(k => ({ ...k, done: false, litT: 0 }));
     carrying  = { tv: 0, speaker: 0 };
     respawnX  = lvl.spawnX;
     floatTexts = [];
+    particles = [];
+    hitStop = shake = hurtFlash = respawnTimer = 0;
+    levelCard = 170;
+    lookFrac = 0.38;
     levelGoal = lvl.goal;
     levelW    = lvl.width;
     const _ln = document.getElementById('level-name'); if (_ln) _ln.textContent = lvl.name;
@@ -2242,10 +2342,27 @@
       document.querySelectorAll('.picker-tile').forEach(t => t.classList.remove('selected'));
       tile.classList.add('selected');
       chosenChar = tile.dataset.pick;
+      try { localStorage.setItem('punchlist.char', chosenChar); } catch (e) {}
       refreshStartBtn();
     };
     tile.addEventListener('pointerdown', bumpPickerCooldown);  // start the lockout the moment fingers/mouse touch
     tile.addEventListener('click', handleTile);
+  });
+  try {
+    const savedChar = localStorage.getItem('punchlist.char');
+    const savedTile = savedChar && document.querySelector('.picker-tile[data-pick="' + savedChar + '"]');
+    if (savedTile) {
+      document.querySelectorAll('.picker-tile').forEach(t => t.classList.remove('selected'));
+      savedTile.classList.add('selected');
+      chosenChar = savedChar;
+    }
+  } catch (e) {}
+  const relaxedInput = document.getElementById('relaxed-input');
+  relaxedInput.checked = relaxed;
+  relaxedInput.addEventListener('change', () => {
+    relaxed = relaxedInput.checked;
+    try { localStorage.setItem('punchlist.relaxed', relaxed ? '1' : '0'); } catch (e) {}
+    updateTimerHud();
   });
   refreshStartBtn();
   // NOTE: the Start button uses its inline onclick="window.__startGame()" attribute.
@@ -2375,6 +2492,7 @@
   const timerDisplay = document.getElementById('timer-display');
   function updateTimerHud() {
     if (!timerDisplay) return;
+    if (relaxed) { timerDisplay.textContent = 'Relaxed'; timerDisplay.classList.remove('urgent'); return; }
     const t = Math.max(0, Math.ceil(timeRemaining));
     const m = Math.floor(t / 60);
     const s = t % 60;
@@ -2387,9 +2505,11 @@
     progressFill.style.width = pct.toFixed(1) + '%';
   }
 
+  // Dual forward focus: more screen ahead of the way you're facing (Itay Keren)
+  let lookFrac = 0.38;
   function cameraTarget() {
     const minCX = LEVELS[currentLevel].minX || 0;
-    return Math.max(minCX, Math.min(levelW - VIRT_W, player.x - VIRT_W * 0.4));
+    return Math.max(minCX, Math.min(levelW - VIRT_W, player.x - VIRT_W * lookFrac));
   }
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -2408,7 +2528,14 @@
     for (const pl of platforms) {
       if (rectsOverlap(p, pl)) {
         if (dy > 0) { p.y = pl.y - p.h; p.vy = 0; p.onGround = true; }
-        else if (dy < 0) { p.y = pl.y + pl.h; p.vy = 0; }
+        else if (dy < 0) {
+          // Corner correction: clipping a platform's edge with your head slides
+          // you past it instead of stopping the jump (Celeste)
+          const NUDGE = 14;
+          if ((p.x + p.w) - pl.x <= NUDGE) { p.x = pl.x - p.w; continue; }
+          if ((pl.x + pl.w) - p.x <= NUDGE) { p.x = pl.x + pl.w; continue; }
+          p.y = pl.y + pl.h; p.vy = 0;
+        }
       }
     }
   }
@@ -2420,6 +2547,18 @@
     floatTexts = floatTexts.filter(f => f.t < 60);
     if (state !== STATE.PLAY) return;
     if (isLoadingLevel) return;  // pause physics while a level's assets are decoding
+    if (shake > 0) shake--;
+    if (hurtFlash > 0) hurtFlash--;
+    if (levelCard > 0) levelCard--;
+    if (hintTimer > 0) hintTimer--;
+    if (hitStop > 0) { hitStop--; return; }
+    updateParticles();
+    if (respawnTimer > 0) {
+      respawnTimer--;
+      if (respawnTimer === 0) resetLevel(false);
+      return;
+    }
+    lookFrac += ((player.facing > 0 ? 0.38 : 0.62) - lookFrac) * 0.04;
 
     // ----- Ladder detection -----
     // Expand rect 8px above topY so a player standing on the platform can grab the ladder.
@@ -2484,17 +2623,25 @@
         player.vy = JUMP_V; player.jumpHeld = MAX_JUMP_HOLD;
         player.coyote = 0; player.jumpBuffer = 0; player.jumpedFrames = 6;
         sfxJump();
+        puff(player.x + player.w / 2, player.y + player.h, 6, 0.6);
       }
       const jumpHeldKey = keys.jump || keys.up;
       if (jumpHeldKey && player.jumpHeld > 0 && player.vy < 0) player.jumpHeld--;
       else player.jumpHeld = 0;
       if (!jumpHeldKey && player.vy < -3) player.vy *= 0.6;
 
-      player.vy = Math.min(player.vy + GRAVITY, MAX_FALL);
+      // Apex hang: holding jump halves gravity near the top of the arc (Celeste)
+      const atApex = jumpHeldKey && Math.abs(player.vy) < 2.4 * S;
+      player.vy = Math.min(player.vy + (atApex ? GRAVITY * 0.5 : GRAVITY), MAX_FALL);
       player.prevOnGround = player.onGround;
+      const fallSpeed = player.vy;
       moveAndCollide(player, player.vx, 0);
       moveAndCollide(player, 0, player.vy);
-      if (!player.prevOnGround && player.onGround) player.landingFlash = 8;
+      if (!player.prevOnGround && player.onGround) {
+        player.landingFlash = 8;
+        player.landAmp = Math.max(0.3, Math.min(1, fallSpeed / MAX_FALL));
+        puff(player.x + player.w / 2, player.y + player.h, player.landAmp > 0.7 ? 12 : 5, player.landAmp);
+      }
       if (player.jumpedFrames > 0) player.jumpedFrames--;
     }
 
@@ -2512,6 +2659,7 @@
       if (rectsOverlap(player, cb)) {
         c.taken = true;
         sfxPickup(c.t);
+        sparkle(c.x, c.y, PICKUP_COLOR[c.t] || '#ffffff', c.t === 'badge' ? 22 : 10);
         if (c.t === 'tv' || c.t === 'speaker') {
           // Carried until installed at a mount point; points come on install
           carrying[c.t]++;
@@ -2537,6 +2685,7 @@
         score += pts; updateScoreHud();
         runStats[m.t === 'tv' ? 'tvs' : 'speakers']++;
         sfxInstall();
+        celebrate(m.x, m.y);
         popText(m.x, m.y + 50, (m.t === 'tv' ? 'TV mounted' : 'Speaker installed') + ' +' + pts);
       }
     }
@@ -2549,6 +2698,7 @@
         score += KEYPAD_POINTS; updateScoreHud();
         runStats.keypads++;
         sfxInstall();
+        celebrate(k.x + k.w / 2, k.y + k.h / 2);
         popText(k.x + k.w / 2, k.y - 16, (ROOM_NAMES[k.room] || 'Room') + ' programmed +' + KEYPAD_POINTS);
       }
     }
@@ -2561,6 +2711,19 @@
         popText(cpX, GROUND_Y - 170, 'Checkpoint', '#9fe3a0');
       }
     }
+
+    // First-time hints
+    for (const h of hazards) {
+      const ahead = h.x - player.x;
+      if (ahead > 0 && ahead < 700) {
+        if (h.type === 'spool') hint('spool', 'Runaway spool! Jump over it');
+        if (h.type === 'burstPipe') hint('pipe', 'Burst pipe! Jump over the water');
+        if (h.type === 'roomba') hint('roomba', 'Robot vacuum on patrol. Hop over it');
+      }
+    }
+    if (carrying.tv + carrying.speaker > 0) hint('carry', 'Carry it to the orange outline to install it');
+    if (keypads.some(k => !k.done && k.x - player.x < 600)) hint('keypad', 'Jump up to the glowing keypad to program the room');
+    if (collectibles.some(c => c.t === 'phone' && !c.taken && c.x - player.x < 500 && c.x > player.x)) hint('phone', 'Grab the phone to light up the tree');
 
     // Patrolling hazards (wire spools, robot vacuums)
     for (const h of hazards) {
@@ -2588,7 +2751,7 @@
       won = true; state = STATE.END;
       if (typeof sfxLevelComplete === 'function') sfxLevelComplete();
       const lvl = LEVELS[currentLevel];
-      const remaining = collectibles.filter(c => !c.taken).length
+      const remaining = collectibles.filter(c => !c.taken && c.t !== 'badge').length
         + installs.filter(m => !m.done).length
         + keypads.filter(k => !k.done).length;
       const timeBonus = Math.floor(timeRemaining); // 1 point per second saved
@@ -2646,7 +2809,11 @@
           player.vx = dir * 4;
           player.vy = -4;
           player.invuln = 60;
-          if (lives <= 1) {
+          impact();
+          if (relaxed) {
+            runStats.callbacks++;
+            sfxDeath();
+          } else if (lives <= 1) {
             loseLife(); // last life: loseLife() decrements and runs game over
           } else {
             lives--;
@@ -2668,7 +2835,7 @@
     }
 
     // Level timer — counts down during play, time-out costs a life
-    if (!won) {
+    if (!won && !relaxed) {
       timeRemaining = Math.max(0, timeRemaining - 1/60);
       updateTimerHud();
       if (timeRemaining <= 0) {
@@ -2717,7 +2884,7 @@
   // Apps Script web apps require text/plain content-type to avoid CORS preflight.
   function submitToLeaderboard(name, scr) {
     const entry = { name: String(name || '').slice(0, 14), score: Math.max(0, scr | 0), ts: Date.now() };
-    if (!entry.name) return getLeaderboardCached();
+    if (!entry.name || relaxed) return getLeaderboardCached();
     const optimistic = getLeaderboardCached().slice();
     optimistic.push(entry);
     optimistic.sort((a, b) => b.score - a.score);
@@ -2798,6 +2965,10 @@
       ['Landscape lights set', r.lights], ['Trees lit', r.trees],
       ['Keypads programmed', r.keypads],
     ].filter(row => row[1] > 0);
+    rows.push(['SI badges found', r.badges + ' of ' + LEVELS.length]);
+    const lbNote = relaxed ? 'Relaxed mode runs stay off the leaderboard'
+      : !playerName ? 'Add a name next time to post your score' : '';
+    if (lbNote) endNote.textContent = (endNote.textContent ? endNote.textContent + ' · ' : '') + lbNote;
     rows.push(['Callbacks', r.callbacks]);
     el.innerHTML = rows.map(([label, n]) =>
       '<div>' + label + '<span class="stat-n">' + n + '</span></div>').join('');
@@ -2818,8 +2989,14 @@
 
   function loseLife() {
     sfxDeath();
-    lives--;
+    impact();
     runStats.callbacks++;
+    if (relaxed) {
+      player.alive = false;
+      respawnTimer = 36;
+      return;
+    }
+    lives--;
     updateLivesHud();
     if (lives <= 0) {
       state = STATE.END;
@@ -2836,7 +3013,11 @@
       renderLeaderboard(playerName, score);
       renderRunSummary(true);
       setOverlay(endOverlay, true);
-    } else { resetLevel(false); }
+    } else {
+      // Death beat: hold for a moment, fade, then respawn at the last flag
+      player.alive = false;
+      respawnTimer = 36;
+    }
   }
 
   // ---------- Render ----------
@@ -3378,6 +3559,18 @@
     ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
   }
 
+  // SI badge: the orange square from the cap logo, with a glint sweeping across
+  function drawBadge(cx, cy) {
+    const y = Math.round(cy + Math.sin(frame / 14) * 4);
+    ctx.fillStyle = 'rgba(232, 118, 31, 0.25)';
+    ctx.fillRect(cx - 18, y - 18, 36, 36);
+    ctx.fillStyle = '#7a3a0c'; ctx.fillRect(cx - 13, y - 13, 26, 26);
+    ctx.fillStyle = '#e8761f'; ctx.fillRect(cx - 11, y - 11, 22, 22);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 5, y - 5, 10, 10);
+    ctx.fillStyle = '#e8761f'; ctx.fillRect(cx - 2, y - 2, 4, 4);
+    const g = (frame % 90) - 20;
+    if (g >= 0 && g < 22) { ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(cx - 11 + g, y - 11, 2, 22); }
+  }
   function drawCollectibles() {
     for (const c of collectibles) {
       if (c.taken) continue;
@@ -3386,6 +3579,10 @@
       const cy = Math.round(c.y + Math.sin(c.bob) * 1.2);
       if (def.drawProc === 'speaker') {
         drawSpeakerProc(cx, cy);
+        continue;
+      }
+      if (def.drawProc === 'badge') {
+        drawBadge(cx, cy);
         continue;
       }
       // Image-based items
@@ -3922,6 +4119,18 @@
     const useClimbFrames = climbing && ci.climbs && ci.climbs.length > 0;
     const useWalkFrames  = !useClimbFrames && moving && ci.walks && ci.walks.length > 0;
     ctx.save();
+    // Squash on landing, stretch on takeoff, pivoting at the feet
+    let sqx = 1, sqy = 1;
+    if (player.landingFlash > 0) {
+      const t = (player.landingFlash / 8) * (player.landAmp || 0.5);
+      sqx = 1 + 0.14 * t; sqy = 1 - 0.16 * t;
+    } else if (player.jumpedFrames > 0) {
+      sqx = 0.92; sqy = 1.08;
+    }
+    if (sqx !== 1) {
+      const fx = player.x - camX + player.w / 2, fy = player.y + player.h;
+      ctx.translate(fx, fy); ctx.scale(sqx, sqy); ctx.translate(-fx, -fy);
+    }
     // Don't horizontally mirror climb frames — the back-view sprite shouldn't flip with facing.
     if (player.facing < 0 && !useClimbFrames) {
       // mirror horizontally around the character's vertical center
@@ -3965,16 +4174,6 @@
     }
     ctx.restore();
 
-    // Landing dust kick
-    if (player.landingFlash > 0) {
-      ctx.fillStyle = 'rgba(220, 195, 150, ' + (player.landingFlash / 16).toFixed(2) + ')';
-      const fx = player.x - camX + player.w / 2;
-      const fy = player.y + player.h - 1;
-      ctx.fillRect(fx - 8, fy, 4, 1);
-      ctx.fillRect(fx + 5, fy, 4, 1);
-      ctx.fillRect(fx - 12, fy - 1, 2, 1);
-      ctx.fillRect(fx + 11, fy - 1, 2, 1);
-    }
   }
 
   // Intro cinematic timing
@@ -4229,6 +4428,9 @@
       case 'tv':          freq = 587; break;
       case 'speaker':     freq = 740; break;
       case 'light':       freq = 1320; break;
+      case 'badge':
+        [784, 988, 1175, 1568].forEach((f, i) => setTimeout(() => _tone(f, f, 0.09, 'square', 0.13), i * 70));
+        return;
       case 'phone':
         // 2-note 'ding-ding' for phone — celebrates lighting up a tree
         _tone(880, 880, 0.08, 'square', 0.15);
@@ -4266,17 +4468,10 @@
     // Refuse to start if the user just interacted with the character picker —
     // protects against phantom clicks on the Start button caused by tile selection.
     if (Date.now() < (window.__pickerCooldownUntil || 0)) return;
+    // Name is optional: without one you play as a guest and skip the leaderboard
     const ni = document.getElementById('name-input');
     const v = ni ? ni.value.trim() : '';
-    if (!v) {
-      if (ni) {
-        ni.focus();
-        ni.style.borderColor = '#e63946';
-        setTimeout(() => { ni.style.borderColor = ''; }, 700);
-      }
-      return;
-    }
-    if (!chosenChar) chosenChar = 'he';
+    if (!chosenChar) chosenChar = 'they';
     playerName = v;
     try { localStorage.setItem('punchlist.name', playerName); } catch (e) {}
     if (hudName) hudName.textContent = playerName;
@@ -4349,6 +4544,11 @@
       return;
     }
     const theme = LEVELS[currentLevel].theme;
+    ctx.save();
+    if (shake > 0) {
+      const m = shake * 0.6;
+      ctx.translate(Math.round((Math.random() - 0.5) * m), Math.round((Math.random() - 0.5) * m));
+    }
     // Level 2 v2 uses its own composited rendering (chroma-keyed rooms over
     // tiled roof / mountains / floor layers). Detect by presence of Lv2_Floor.
     const isLv2v2 = isHouseTheme(theme) && !!itemImg.Lv2_Floor;
@@ -4402,13 +4602,53 @@
     drawKeypads();
     drawCollectibles();
     drawPlayer();
+    drawParticles();
     drawCarried();
     // Foreground beams render AFTER the player so the player passes behind them
     drawBeams();
     drawFloatTexts();
+    ctx.restore();
+    drawScreenOverlays();
     if (DEBUG) drawFps();
     requestAnimationFrame(frameLoop);
   }
+  // Full-screen layers drawn over the world: hurt flash, death fade, level card, hints
+  function drawScreenOverlays() {
+    if (hurtFlash > 0) {
+      ctx.fillStyle = 'rgba(230, 57, 70, ' + (hurtFlash / 14 * 0.28).toFixed(3) + ')';
+      ctx.fillRect(0, 0, VIRT_W, VIRT_H);
+    }
+    if (respawnTimer > 0) {
+      // Fade to dark and back over the death beat
+      const t = 1 - respawnTimer / 36;
+      ctx.fillStyle = 'rgba(8, 10, 14, ' + Math.sin(t * Math.PI).toFixed(3) + ')';
+      ctx.fillRect(0, 0, VIRT_W, VIRT_H);
+    }
+    const lvl = LEVELS[currentLevel];
+    if (levelCard > 0) {
+      const a = Math.min(1, levelCard / 30, (170 - levelCard) / 15);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = 'rgba(10, 14, 20, 0.72)';
+      ctx.fillRect(0, 190, VIRT_W, 150);
+      ctx.fillStyle = '#e8761f'; ctx.fillRect(0, 190, VIRT_W, 3); ctx.fillRect(0, 337, VIRT_W, 3);
+      drawPixelText('LEVEL ' + (currentLevel + 1) + ' OF ' + LEVELS.length, VIRT_W / 2, 222, '#e8761f', 18);
+      drawPixelText(lvl.name.toUpperCase(), VIRT_W / 2, 264, '#ffffff', 40);
+      if (lvl.goalText) drawPixelText(lvl.goalText, VIRT_W / 2, 308, '#f0eee4', 18);
+      ctx.globalAlpha = 1;
+    } else if (hintTimer > 0) {
+      const a = Math.min(1, hintTimer / 20, (200 - hintTimer) / 10);
+      ctx.globalAlpha = a;
+      ctx.font = '900 18px "Courier New", ui-monospace, monospace';
+      const w = ctx.measureText(hintText).width + 40;
+      ctx.fillStyle = 'rgba(10, 14, 20, 0.8)';
+      ctx.fillRect(Math.round(VIRT_W / 2 - w / 2), 96, Math.round(w), 40);
+      ctx.fillStyle = '#e8761f';
+      ctx.fillRect(Math.round(VIRT_W / 2 - w / 2), 96, 4, 40);
+      drawPixelText(hintText, VIRT_W / 2, 117, '#ffffff', 18);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // FPS readout, only with ?debug in the URL
   const DEBUG = new URLSearchParams(location.search).has('debug');
   function drawFps() {

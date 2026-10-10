@@ -9,7 +9,11 @@ A side-scrolling browser game from System Integrators Vermont. You play an SI te
 3. **Landscape Lighting** - set fixtures and light up the trees at night.
 4. **Commissioning** - the house is dark. Jump to the keypad in each room to program it and bring the lights up, without tripping over the robot vacuums.
 
-Each level has a 90-second clock and checkpoint flags, so a fall sends you back to the last flag instead of the van. Finish everything in a level for a Clean Punch List bonus, and save time for a speed bonus. Level 1 hides two secret doors.
+Each level has a 90-second clock and checkpoint flags, so a fall sends you back to the last flag instead of the van. Finish everything in a level for a Clean Punch List bonus, and save time for a speed bonus. Every level hides an orange SI badge off the main route, and Level 1 hides two secret doors.
+
+**Relaxed mode** (a checkbox on the character screen) turns off the clock and gives unlimited lives. Relaxed runs don't post to the leaderboard. The name is optional too. Without one you play as a guest and your score stays local.
+
+The design thinking behind the game feel, camera, hints and difficulty options is in [docs/design-research.md](docs/design-research.md).
 
 ## Controls
 
