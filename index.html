@@ -7,7 +7,8 @@
 <meta name="description" content="A side-scrolling game about wiring a Vermont smart home, from rough-in to landscape lighting. Made by System Integrators Vermont.">
 <meta property="og:title" content="System Integrators Simulator">
 <meta property="og:description" content="Wire a Vermont smart home, from rough-in to landscape lighting.">
-<meta property="og:image" content="assets/bg-title.jpg">
+<meta property="og:image" content="https://system-integrators-vermont.github.io/Simulator/assets/bg-title.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <style>
   :root { --orange: #e8761f; --hud-bg: rgba(20, 26, 34, 0.78); --hud-text: #f0eee4; }
   * { box-sizing: border-box; }
@@ -43,7 +44,33 @@
   #timer-display { font-variant-numeric: tabular-nums; font-weight: 700; letter-spacing: 0.06em; font-size: 1.05em; }
   #timer-display.urgent { color: #ff7a5a; animation: pulse 0.8s ease-in-out infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
-  body:not(.playing) #level-card { visibility: hidden; }
+  body:not(.playing) #level-card, body:not(.playing) #score,
+  body:not(.playing) #lives, body:not(.playing) #home-btn { visibility: hidden; }
+  body.touch .keys { display: none; }
+  #rotate-hint { display: none; }
+  @media (orientation: portrait) and (max-width: 820px) {
+    body.touch #rotate-hint { display: block; position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; text-align: center; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); }
+  }
+  #end-overlay, #title-overlay { justify-content: safe center; overflow-y: auto; }
+  /* Phones held sideways: tighten the name / character screen so Play stays on screen */
+  @media (max-height: 500px) {
+    #title-overlay { padding: 10px; }
+    #title-overlay h1 { font-size: 18px; margin: 0 0 4px; }
+    #title-overlay h1[style] { margin-top: 8px !important; }
+    #title-overlay > p { display: none; }
+    #name-row { margin: 4px 0; }
+    #picker-tiles { margin: 6px 0 0; }
+    #picker-tiles .picker-tile { padding: 6px 10px; }
+    #picker-tiles .picker-tile img { width: 54px; }
+    #title-overlay .title-start-btn { margin-top: 8px; }
+    #title-overlay .title-start-btn img { width: 130px; }
+    #title-overlay .keys { display: none; }
+  }
+  #end-stats { display: grid; grid-template-columns: repeat(2, auto); gap: 4px 22px; margin: 12px auto 0; font-size: clamp(11px, 1.4vw, 14px); text-align: left; }
+  #end-stats .stat-n { color: #f7e08a; font-variant-numeric: tabular-nums; margin-left: 8px; }
+  .end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .end-credit { margin-top: 14px !important; font-size: clamp(11px, 1.3vw, 13px) !important; opacity: 0.6 !important; }
+  .end-credit a { color: var(--orange); }
   #progress { width: clamp(80px, 14vw, 160px); height: 3px; background: rgba(255,255,255,0.18); border-radius: 2px; overflow: hidden; }
   #progress-fill { height: 100%; width: 0%; background: var(--orange); transition: width 120ms linear; }
   #lives { display: flex; gap: 4px; align-items: center; padding: 6px 10px; }
@@ -158,6 +185,7 @@
 </style>
 </head>
 <body>
+<div id="rotate-hint">Turn your phone sideways to play</div>
 <div id="stage">
   <div id="frame">
     <canvas id="game"></canvas>
@@ -215,26 +243,15 @@
         <div class="picker-tile" data-pick="he" id="tile-he"><img id="prev-he" alt="He/Him" /></div>
       </div>
       <div class="keys">
-        <span><kbd>←</kbd><kbd>→</kbd> Move</span>
+        <span><kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> Move</span>
         <span><kbd>Space</kbd> or <kbd>↑</kbd> Jump</span>
-        <span><kbd>↑</kbd><kbd>↓</kbd> Climb on ladders</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> Climb ladders</span>
         <span><kbd>Esc</kbd> Pause</span>
       </div>
       <button class="title-start-btn" id="start-btn" onclick="window.__startGame && window.__startGame()" type="button">
         <img id="start-btn-img" alt="" onerror="this.style.display='none'" />
         <span class="start-fallback">▶ PLAY</span>
       </button>
-    </div>
-
-    <div class="overlay hidden" id="phase-overlay">
-      <h2>Pick your phase</h2>
-      <h1>Where to today?</h1>
-      <p>Choose which job you want to work on.</p>
-      <div class="menu-buttons">
-        <button class="btn" data-phase="0">Rough In</button>
-        <button class="btn btn-secondary" data-phase="1">Installation</button>
-      </div>
-      <p style="opacity:0.55;margin-top:14px;font-size:0.9em;">More phases coming soon.</p>
     </div>
 
     <div class="overlay hidden" id="pause-overlay">
@@ -268,8 +285,13 @@
       <h1 id="end-title">Nice work</h1>
       <p>Score: <span id="end-score">0</span></p>
       <p id="end-note" style="opacity:0.6;margin-top:6px;"></p>
+      <div id="end-stats" style="display:none;"></div>
       <div id="leaderboard" style="display:none;"></div>
-      <button class="btn" id="again-btn">Play Again</button>
+      <div class="end-actions">
+        <button class="btn" id="again-btn">Play Again</button>
+        <button class="btn btn-secondary" id="share-btn" style="display:none;">Share score</button>
+      </div>
+      <p class="end-credit">Made by <a href="https://www.sivermont.com" target="_blank" rel="noopener">System Integrators Vermont</a></p>
     </div>
   </div>
 </div>
@@ -301,7 +323,7 @@
   const CLIMB_SPEED = 1.6 * S;
 
   // Per-level timer
-  const LEVEL_TIME = 120; // seconds
+  const LEVEL_TIME = 90; // seconds
   let timeRemaining = LEVEL_TIME;
 
   // ---------- Embedded character parts (base64) ----------
@@ -923,12 +945,12 @@
   // ---------- Input ----------
   const keys = { left: false, right: false, jump: false, up: false, down: false };
   let jumpPressed = false;
-  // Arrow keys + space only.
+  // Arrow keys or WASD, plus space.
   const KEYMAP = {
-    'ArrowLeft':'left',
-    'ArrowRight':'right',
-    'ArrowUp':'up',     // climb up on a ladder; also jumps on ground
-    'ArrowDown':'down', // climb down on a ladder
+    'ArrowLeft':'left',  'KeyA':'left',
+    'ArrowRight':'right', 'KeyD':'right',
+    'ArrowUp':'up',      'KeyW':'up',   // climb up on a ladder; also jumps on ground
+    'ArrowDown':'down',  'KeyS':'down', // climb down on a ladder
     'Space':'jump'
   };
   window.addEventListener('keydown', (e) => {
@@ -963,7 +985,7 @@
   if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) document.body.classList.add('touch');
   function bindPad(id, key) {
     const el = document.getElementById(id);
-    const press = (e) => { e.preventDefault(); el.classList.add('active'); if (key === 'jump' && !keys.jump) jumpPressed = true; keys[key] = true; };
+    const press = (e) => { e.preventDefault(); el.classList.add('active'); if ((key === 'jump' || key === 'up') && !keys[key]) jumpPressed = true; keys[key] = true; };
     const release = (e) => { e.preventDefault(); el.classList.remove('active'); keys[key] = false; };
     el.addEventListener('touchstart', press, { passive: false });
     el.addEventListener('touchend', release, { passive: false });
@@ -974,7 +996,36 @@
   }
   bindPad('pad-left', 'left');
   bindPad('pad-right', 'right');
-  bindPad('pad-jump', 'jump');
+  // The jump pad acts like the Up key, so it also climbs ladders
+  bindPad('pad-jump', 'up');
+
+  // Game controllers (standard mapping): d-pad or left stick moves, A jumps,
+  // Start pauses. Only changes are written into `keys`, so a controller and the
+  // keyboard can be used side by side.
+  const padPrev = { left: false, right: false, up: false, down: false, jump: false, start: false };
+  function pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = Array.from(pads || []).find(p => p && p.connected);
+    if (!gp) return;
+    const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed);
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    const now = {
+      left: b(14) || ax < -0.4, right: b(15) || ax > 0.4,
+      up: b(12) || ay < -0.5,   down: b(13) || ay > 0.5,
+      jump: b(0), start: b(9),
+    };
+    for (const k of ['left', 'right', 'up', 'down', 'jump']) {
+      if (now[k] !== padPrev[k]) {
+        keys[k] = now[k];
+        if (now[k] && (k === 'jump' || k === 'up')) jumpPressed = true;
+      }
+    }
+    if (now.start && !padPrev.start) {
+      if (state === STATE.PLAY || state === STATE.PAUSE) togglePause();
+      else if (state === STATE.END) document.getElementById('again-btn').click();
+    }
+    Object.assign(padPrev, now);
+  }
 
   // ---------- Levels ----------
   // GROUND_Y and all LEVELS coordinate fields are defined in 1x logical space
@@ -995,6 +1046,13 @@
     // Phone — picking it up "lights up" the tree at the player's tree.
     // Per-collectible `treeId` field tells drawTrees which tree to swap to lit.
     phone:       { sprite: 'phone',       points: 100 },
+  };
+
+  const KEYPAD_POINTS = 200;
+  // Which run-summary line each pickup counts toward
+  const STAT_FOR_TYPE = {
+    wire: 'wire', wireGrey: 'wire', hammer: 'tools', cutter: 'tools', cutterNight: 'tools',
+    light: 'lights', phone: 'trees',
   };
 
   const LEVELS = [
@@ -1355,7 +1413,12 @@
         "t": "hammer"
       }
     ],
-    "hazards": [],
+    "hazards": [
+      { "type": "spool", "x": 3200, "y": 404, "w": 48, "h": 60, "minX": 2760, "maxX": 3960, "vx": 2.4 },
+      { "type": "spool", "x": 4700, "y": 404, "w": 48, "h": 60, "minX": 4400, "maxX": 5200, "vx": -2.8 },
+      { "type": "spool", "x": 6600, "y": 404, "w": 48, "h": 60, "minX": 6100, "maxX": 7300, "vx": 3.2 }
+    ],
+    "checkpoints": [2700, 4200, 5500],
     "goal": {
       "x": 7602,
       "y": 336,
@@ -1412,6 +1475,18 @@
       { "type": "burstPipe", "x": 3050, "y": 296, "w": 70, "h": 168 },
       { "type": "burstPipe", "x": 8580, "y": 296, "w": 70, "h": 168 }
     ],
+    // Picked-up TVs and speakers are carried until you walk past one of these.
+    "installs": [
+      { "t": "speaker", "x": 2480, "y": 120 },
+      { "t": "tv",      "x": 2880, "y": 180 },
+      { "t": "speaker", "x": 3900, "y": 120 },
+      { "t": "tv",      "x": 4250, "y": 230 },
+      { "t": "speaker", "x": 6050, "y": 120 },
+      { "t": "tv",      "x": 7000, "y": 230 },
+      { "t": "speaker", "x": 8250, "y": 120 },
+      { "t": "tv",      "x": 9350, "y": 230 }
+    ],
+    "checkpoints": [2720, 4640, 5780, 7280],
     "bgSections": [
       { "type": "exterior", "bg": "Lv2_Exterior",   "x": 0,    "w": 1280 },
       { "type": "interior", "bg": "Lv2_GrandEntry", "x": 1280, "w": 960  },
@@ -1852,6 +1927,7 @@
         "scale": 0.95
       }
     ],
+    "checkpoints": [2000, 4000, 6000],
     "goal": {
       "x": 7558,
       "y": 304,
@@ -1863,166 +1939,44 @@
     "warpDoors": []
   }
 ];
-  /* === Original LEVELS data preserved as comment for reference ===
-    {
-      name: "Rough In",
-      width: 4250,
-      spawnX: 280,
-      theme: "rough-in",
-      showVan: true,
-      showMansion: true,
-      platforms: [
-        { x: 0,    y: GROUND_Y, w: 720,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 770,  y: GROUND_Y, w: 510,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 1320, y: GROUND_Y, w: 720,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 2080, y: GROUND_Y, w: 560,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 2680, y: GROUND_Y, w: 1570, h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 380,  y: 188, w: 80, h: 12, type: 'plat' },
-        { x: 510,  y: 156, w: 80, h: 12, type: 'plat' },
-        { x: 640,  y: 188, w: 80, h: 12, type: 'plat' },
-        { x: 880,  y: 178, w: 96, h: 12, type: 'plat' },
-        { x: 1060, y: 142, w: 96, h: 12, type: 'plat' },
-        { x: 1240, y: 178, w: 96, h: 12, type: 'plat' },
-        { x: 1480, y: 168, w: 80, h: 12, type: 'plat' },
-        { x: 1620, y: 130, w: 80, h: 12, type: 'plat' },
-        { x: 1780, y: 168, w: 80, h: 12, type: 'plat' },
-        { x: 1950, y: 200, w: 80, h: 12, type: 'plat' },
-        { x: 2200, y: 180, w: 80, h: 12, type: 'plat' },
-        { x: 2340, y: 150, w: 80, h: 12, type: 'plat' },
-        { x: 2480, y: 180, w: 80, h: 12, type: 'plat' },
-        { x: 2780, y: 178, w: 96, h: 12, type: 'plat' },
-        { x: 2940, y: 142, w: 96, h: 12, type: 'plat' },
-        { x: 3100, y: 178, w: 96, h: 12, type: 'plat' },
-        { x: 3280, y: 200, w: 96, h: 12, type: 'plat' },
-      ],
-      ladders: [
-        { x: 524, topY: 156, botY: GROUND_Y, w: 28 },
-        { x: 1074, topY: 142, botY: GROUND_Y, w: 28 },
-        { x: 1634, topY: 130, botY: GROUND_Y, w: 28 },
-        { x: 2954, topY: 142, botY: GROUND_Y, w: 28 },
-      ],
-      collectiblesInit: [
-        { x: 320, y: 200, t: 'wire',   v: 0 },
-        { x: 380, y: 200, t: 'hammer'        },
-        { x: 450, y: 158, t: 'wire',   v: 1 },
-        { x: 540, y: 126, t: 'cutter'        },
-        { x: 660, y: 158, t: 'hammer'        },
-        { x: 905, y: 148, t: 'wire',   v: 0 },
-        { x: 1085, y: 112, t: 'cutter'       },
-        { x: 1265, y: 148, t: 'wire',  v: 1 },
-        { x: 1500, y: 138, t: 'hammer'       },
-        { x: 1645, y: 100, t: 'cutter'       },
-        { x: 1800, y: 138, t: 'wire',  v: 0 },
-        { x: 1985, y: 170, t: 'hammer'       },
-        { x: 2225, y: 150, t: 'wire',  v: 1 },
-        { x: 2365, y: 120, t: 'cutter'       },
-        { x: 2510, y: 150, t: 'wire',  v: 0 },
-        { x: 2810, y: 148, t: 'hammer'       },
-        { x: 2965, y: 112, t: 'cutter'       },
-        { x: 3125, y: 148, t: 'wire',  v: 1 },
-        { x: 3300, y: 170, t: 'wire',  v: 0 },
-        { x: 3450, y: 200, t: 'hammer'       },
-      ],
-      hazards: [],
-      goal: { x: 3500 + 325 - 24, y: GROUND_Y - 64, w: 48, h: 64 }, // mansion door
-    },
-    {
-      name: "Installation",
-      width: 3600,
-      spawnX: 280,        // past the van (van is 253 wide at x=8)
-      theme: "trim-out",
-      showVan: true,      // SI van parked at start of installation level too
-      showMansion: false,
-      platforms: [
-        { x: 0,    y: GROUND_Y, w: 600,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 650,  y: GROUND_Y, w: 540,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 1240, y: GROUND_Y, w: 660,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 1950, y: GROUND_Y, w: 580,  h: VIRT_H - GROUND_Y, type: 'ground' },
-        { x: 2580, y: GROUND_Y, w: 1020, h: VIRT_H - GROUND_Y, type: 'ground' },
-        // Indoor platforms — these are finished trim shelves / scaffolding
-        { x: 280,  y: 180, w: 96, h: 10, type: 'plat' },
-        { x: 440,  y: 144, w: 96, h: 10, type: 'plat' },
-        { x: 760,  y: 170, w: 96, h: 10, type: 'plat' },
-        { x: 920,  y: 130, w: 96, h: 10, type: 'plat' },
-        { x: 1080, y: 170, w: 96, h: 10, type: 'plat' },
-        { x: 1340, y: 200, w: 80, h: 10, type: 'plat' },
-        { x: 1500, y: 158, w: 96, h: 10, type: 'plat' },
-        { x: 1680, y: 130, w: 96, h: 10, type: 'plat' },
-        { x: 2030, y: 180, w: 96, h: 10, type: 'plat' },
-        { x: 2200, y: 145, w: 96, h: 10, type: 'plat' },
-        { x: 2380, y: 180, w: 80, h: 10, type: 'plat' },
-        { x: 2680, y: 170, w: 96, h: 10, type: 'plat' },
-        { x: 2860, y: 138, w: 96, h: 10, type: 'plat' },
-        { x: 3040, y: 170, w: 96, h: 10, type: 'plat' },
-      ],
-      ladders: [
-        { x: 454, topY: 144, botY: GROUND_Y, w: 28 },
-        { x: 934, topY: 130, botY: GROUND_Y, w: 28 },
-        { x: 1694, topY: 130, botY: GROUND_Y, w: 28 },
-        { x: 2874, topY: 138, botY: GROUND_Y, w: 28 },
-      ],
-      collectiblesInit: [
-        { x: 380, y: 200, t: 'hammer'  },
-        { x: 480, y: 168, t: 'tv'      },
-        // Speaker row #1 — entry hall ceiling install (5 in a row at constant y)
-        { x: 600, y: 130, t: 'speaker' },
-        { x: 640, y: 130, t: 'speaker' },
-        { x: 680, y: 130, t: 'speaker' },
-        { x: 720, y: 130, t: 'speaker' },
-        { x: 760, y: 130, t: 'speaker' },
-        { x: 880, y: 158, t: 'cutter'  },
-        { x: 1000, y: 200, t: 'hammer' },
-        { x: 1120, y: 158, t: 'tv'     },
-        { x: 1380, y: 188, t: 'cutter' },
-        // Speaker row #2 — kitchen ceiling line (4 in a row)
-        { x: 1520, y: 110, t: 'speaker' },
-        { x: 1560, y: 110, t: 'speaker' },
-        { x: 1600, y: 110, t: 'speaker' },
-        { x: 1640, y: 110, t: 'speaker' },
-        { x: 1720, y: 158, t: 'tv'     },
-        { x: 1860, y: 195, t: 'hammer' },
-        { x: 2070, y: 168, t: 'cutter' },
-        { x: 2240, y: 133, t: 'tv'     },
-        // Speaker row #3 — theater (5 in a row, cinema soundscape)
-        { x: 2380, y: 120, t: 'speaker' },
-        { x: 2420, y: 120, t: 'speaker' },
-        { x: 2460, y: 120, t: 'speaker' },
-        { x: 2500, y: 120, t: 'speaker' },
-        { x: 2540, y: 120, t: 'speaker' },
-        { x: 2720, y: 158, t: 'tv'     },
-        { x: 2900, y: 126, t: 'cutter' },
-        { x: 3080, y: 158, t: 'hammer' },
-        { x: 3260, y: 200, t: 'cutter' },
-        // Speaker row #4 — gym ceiling
-        { x: 3300, y: 130, t: 'speaker' },
-        { x: 3340, y: 130, t: 'speaker' },
-        { x: 3380, y: 130, t: 'speaker' },
-      ],
-      hazards: [
-        // Sparking junction boxes only — fans removed (too unfair).
-        { type: 'spark', x: 1180, y: 200, w: 16, h: 16 },
-        { type: 'spark', x: 2150, y: 200, w: 16, h: 16 },
-        { type: 'spark', x: 2950, y: 200, w: 16, h: 16 },
-      ],
-      // Indoor BG sections — outdoor (mountain) covers 0..450, then rooms.
-      // 'procBasement' sections render procedurally (exposed joists + concrete)
-      // to give the "falling into the basement" feel between finished rooms.
-      bgSections: [
-        { bg: 'bgEntry',     x: 450,  w: 370 },
-        { bg: 'bgHallway',   x: 820,  w: 280 },
-        { bg: 'procBasement', x: 1100, w: 280 },  // basement transition
-        { bg: 'bgKitchen',   x: 1380, w: 350 },
-        { bg: 'bgHallway',   x: 1730, w: 280 },
-        { bg: 'procBasement', x: 2010, w: 270 },  // basement transition
-        { bg: 'bgTheater',   x: 2280, w: 350 },
-        { bg: 'bgHallway',   x: 2630, w: 550 },
-        { bg: 'bgGym',       x: 3180, w: 270 },
-        { bg: 'bgHallway',   x: 3450, w: 150 },
-      ],
-      goal: { x: 3500, y: GROUND_Y - 80, w: 48, h: 80 }, // doorway at end
-    },
-  ];
-  === end original LEVELS comment === */
+
+  const ROOM_NAMES = {
+    Lv2_GrandEntry: 'Grand Entry', Lv2_HallA: 'Front Hall', Lv2_Kitchen: 'Kitchen',
+    Lv2_GreatRoom: 'Great Room', Lv2_Library: 'Library', Lv2_HallB: 'Center Hall',
+    Lv2_Theater: 'Theater', Lv2_HallC: 'Back Hall', Lv2_PrimaryBed: 'Primary Suite',
+    Lv2_GuestBed: 'Guest Room', Lv2_Gym: 'Home Gym', Lv2_Mudroom: 'Mudroom',
+  };
+
+  // Keypads go 70 px into each room unless the art there needs something else
+  const KEYPAD_SPOTS = {
+    Lv2_Kitchen: { x: 2810, y: 348 },  // backsplash, clear of the upper cabinets
+    Lv2_Mudroom: { x: 9500 },          // beside the exit door, not on the cubbies
+  };
+
+  // Level 4 reuses the Trim Out house. Every room starts dark; programming the
+  // keypad by its doorway (jump to reach it) lights the room.
+  function buildCommissioningLevel(base) {
+    const lvl = JSON.parse(JSON.stringify(base));
+    lvl.name = 'Commissioning';
+    lvl.theme = 'commissioning';
+    lvl.collectiblesInit = [];
+    lvl.installs = [];
+    lvl.keypads = lvl.bgSections
+      .filter(sec => sec.type === 'interior')
+      .map(sec => ({ x: sec.x + 70, y: 272, w: 32, h: 32, room: sec.bg, ...(KEYPAD_SPOTS[sec.bg] || {}) }));
+    lvl.hazards = [
+      { type: 'roomba', x: 2400, y: 444, w: 56, h: 20, minX: 2250, maxX: 2700, vx: 1.6 },
+      { type: 'roomba', x: 2900, y: 444, w: 56, h: 20, minX: 2760, maxX: 3180, vx: -1.8 },
+      { type: 'roomba', x: 7000, y: 444, w: 56, h: 20, minX: 6820, maxX: 7260, vx: 2.0 },
+      { type: 'roomba', x: 9300, y: 444, w: 56, h: 20, minX: 9220, maxX: 9500, vx: -1.6 },
+    ];
+    return lvl;
+  }
+  LEVELS.push(buildCommissioningLevel(LEVELS[1]));
+  ASSET_BUNDLES.level4 = ASSET_BUNDLES.level2.slice();
+
+  // Trim Out and Commissioning share the chroma-keyed house renderer.
+  function isHouseTheme(theme) { return theme === 'trim-out' || theme === 'commissioning'; }
 
   let currentLevel = 0;
   let levelGoal = LEVELS[0].goal;
@@ -2035,6 +1989,18 @@
   let hazards = [];
   // Set of tree ids whose phone has been collected — drawTrees uses this to swap in the lit variant.
   let litTrees = new Set();
+  let installs = [];                    // Trim Out mount points ({t, x, y, done})
+  let keypads = [];                     // Commissioning keypads ({x, y, w, h, room, done, litT})
+  let carrying = { tv: 0, speaker: 0 }; // picked up but not yet installed
+  let respawnX = 0;                     // furthest checkpoint reached this level
+  let floatTexts = [];                  // "+25" pop-ups
+  function newRunStats() {
+    return { wire: 0, tools: 0, tvs: 0, speakers: 0, lights: 0, trees: 0, keypads: 0, callbacks: 0 };
+  }
+  let runStats = newRunStats();
+  function popText(x, y, text, color) {
+    floatTexts.push({ x, y, text, color: color || '#f7e08a', t: 0 });
+  }
 
   // Procedural decor (regenerated per level)
   let studs = [];
@@ -2182,6 +2148,11 @@
     litTrees.clear();  // each level starts with all trees dark again
     collectibles = lvl.collectiblesInit.map(c => ({ ...c, taken: false, bob: Math.random() * Math.PI * 2 }));
     hazards   = lvl.hazards.map(h => ({ ...h, phase: Math.random() * Math.PI * 2, t: 0 }));
+    installs  = (lvl.installs || []).map(m => ({ ...m, done: false }));
+    keypads   = (lvl.keypads || []).map(k => ({ ...k, done: false, litT: 0 }));
+    carrying  = { tv: 0, speaker: 0 };
+    respawnX  = lvl.spawnX;
+    floatTexts = [];
     levelGoal = lvl.goal;
     levelW    = lvl.width;
     const _ln = document.getElementById('level-name'); if (_ln) _ln.textContent = lvl.name;
@@ -2229,7 +2200,6 @@
   let playerName = '';
 
   const titleOverlay = document.getElementById('title-overlay');
-  const phaseOverlay = document.getElementById('phase-overlay');
   const pauseOverlay = document.getElementById('pause-overlay');
   const endOverlay   = document.getElementById('end-overlay');
   const homeOverlay  = document.getElementById('home-overlay');
@@ -2282,17 +2252,9 @@
   // No additional click listener here — having both fired the start sequence twice and
   // bypassed name validation. window.__startGame is defined further below.
 
-  // Phase select buttons
-  document.querySelectorAll('#phase-overlay .btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const phase = parseInt(btn.dataset.phase, 10);
-      if (isNaN(phase)) return;
-      setOverlay(phaseOverlay, false);
-      startGameAtLevel(phase);
-    });
-  });
-
+  // Fresh run (new game or after Game Over / the final level)
   function startGameAtLevel(idx) {
+    runStats = newRunStats();
     loadLevel(Math.max(0, Math.min(LEVELS.length - 1, idx)));
     state = STATE.PLAY;
     if (typeof sfxLevelStart === 'function') sfxLevelStart();
@@ -2301,7 +2263,6 @@
     if (introOverlay) setOverlay(introOverlay, false);
     if (nameOverlay)  setOverlay(nameOverlay,  false);
     setOverlay(titleOverlay, false);
-    setOverlay(phaseOverlay, false);
     setOverlay(pauseOverlay, false);
     setOverlay(endOverlay, false);
   }
@@ -2384,11 +2345,6 @@
     return 0;
   }
 
-  function startGame() {
-    loadLevel(getStartLevel()); // fresh game starts at requested level (default Level 1)
-    state = STATE.PLAY;
-    setOverlay(titleOverlay, false); setOverlay(pauseOverlay, false); setOverlay(endOverlay, false);
-  }
   function togglePause() {
     if (state === STATE.PLAY) { state = STATE.PAUSE; setOverlay(pauseOverlay, true); }
     else if (state === STATE.PAUSE) { state = STATE.PLAY; setOverlay(pauseOverlay, false); }
@@ -2400,16 +2356,15 @@
     if (fullReset) {
       loadLevel(currentLevel);
     } else {
-      // Soft reset for death — same level, keep score, lose nothing else
-      const lvl = LEVELS[currentLevel];
-      player.x = lvl.spawnX; player.y = GROUND_Y - player.h;
+      // Soft reset for death — back to the last checkpoint, keep score and items
+      player.x = respawnX; player.y = GROUND_Y - player.h;
       player.vx = 0; player.vy = 0;
       player.onGround = false; player.coyote = 0; player.jumpBuffer = 0; player.jumpHeld = 0;
       player.facing = 1; player.invuln = 60; player.alive = true;
       player.landingFlash = 0; player.jumpedFrames = 0;
       player.climbing = false; player.walkPhase = 0;
-      camX = 0;
-      // Fresh 2 minutes on each retry within the level
+      camX = cameraTarget();
+      // Fresh clock on each retry within the level
       timeRemaining = LEVEL_TIME;
       updateTimerHud();
       if (typeof sfxLevelStart === 'function') sfxLevelStart();  // "come back to life" fanfare
@@ -2432,6 +2387,10 @@
     progressFill.style.width = pct.toFixed(1) + '%';
   }
 
+  function cameraTarget() {
+    const minCX = LEVELS[currentLevel].minX || 0;
+    return Math.max(minCX, Math.min(levelW - VIRT_W, player.x - VIRT_W * 0.4));
+  }
   function rectsOverlap(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
@@ -2456,6 +2415,9 @@
 
   function update() {
     frame++;
+    pollGamepad();
+    for (const f of floatTexts) f.t++;
+    floatTexts = floatTexts.filter(f => f.t < 60);
     if (state !== STATE.PLAY) return;
     if (isLoadingLevel) return;  // pause physics while a level's assets are decoding
 
@@ -2540,9 +2502,7 @@
     if (player.x < _minPX) { player.x = _minPX; player.vx = 0; }
     if (player.y > VIRT_H + 40 && player.alive) loseLife();
 
-    const _minCX = (LEVELS[currentLevel].minX || 0);
-    const targetCam = Math.max(_minCX, Math.min(levelW - VIRT_W, player.x - VIRT_W * 0.4));
-    camX += (targetCam - camX) * 0.15;
+    camX += (cameraTarget() - camX) * 0.15;
 
     for (const c of collectibles) {
       if (c.taken) continue;
@@ -2550,11 +2510,65 @@
       // Hitbox sized for the actual item sprite (~22 tall).
       const cb = { x: c.x - 10, y: c.y - 11 + Math.sin(c.bob) * 1.2, w: 20, h: 22 };
       if (rectsOverlap(player, cb)) {
-        c.taken = true; score += TYPES[c.t].points; updateScoreHud();
+        c.taken = true;
         sfxPickup(c.t);
+        if (c.t === 'tv' || c.t === 'speaker') {
+          // Carried until installed at a mount point; points come on install
+          carrying[c.t]++;
+          popText(c.x, c.y - 20, c.t === 'tv' ? 'Got a TV' : 'Got a speaker', '#f0eee4');
+        } else {
+          score += TYPES[c.t].points; updateScoreHud();
+          popText(c.x, c.y - 20, '+' + TYPES[c.t].points);
+          const stat = STAT_FOR_TYPE[c.t];
+          if (stat) runStats[stat]++;
+        }
         // Phone collectible: light up the linked tree.
         if (c.t === 'phone' && c.treeId !== undefined) litTrees.add(c.treeId);
       }
+    }
+
+    // Trim Out: walking past a mount point while carrying the right item installs it
+    for (const m of installs) {
+      if (m.done || carrying[m.t] <= 0) continue;
+      if (Math.abs((player.x + player.w / 2) - m.x) < 40) {
+        m.done = true;
+        carrying[m.t]--;
+        const pts = TYPES[m.t].points;
+        score += pts; updateScoreHud();
+        runStats[m.t === 'tv' ? 'tvs' : 'speakers']++;
+        sfxInstall();
+        popText(m.x, m.y + 50, (m.t === 'tv' ? 'TV mounted' : 'Speaker installed') + ' +' + pts);
+      }
+    }
+
+    // Commissioning: touching a keypad programs it and lights the room
+    for (const k of keypads) {
+      if (k.done) { k.litT = Math.min(1, k.litT + 0.04); continue; }
+      if (rectsOverlap(player, k)) {
+        k.done = true;
+        score += KEYPAD_POINTS; updateScoreHud();
+        runStats.keypads++;
+        sfxInstall();
+        popText(k.x + k.w / 2, k.y - 16, (ROOM_NAMES[k.room] || 'Room') + ' programmed +' + KEYPAD_POINTS);
+      }
+    }
+
+    // Checkpoints: respawn at the furthest one passed
+    for (const cpX of (LEVELS[currentLevel].checkpoints || [])) {
+      if (player.x >= cpX && respawnX < cpX) {
+        respawnX = cpX;
+        sfxCheckpoint();
+        popText(cpX, GROUND_Y - 170, 'Checkpoint', '#9fe3a0');
+      }
+    }
+
+    // Patrolling hazards (wire spools, robot vacuums)
+    for (const h of hazards) {
+      if (h.minX === undefined) continue;
+      h.x += h.vx;
+      if (h.x < h.minX) { h.x = h.minX; h.vx = -h.vx; }
+      if (h.x + h.w > h.maxX) { h.x = h.maxX - h.w; h.vx = -h.vx; }
+      h.t++;
     }
 
     // Secret warp-door triggers (Level 1 only — checks overlap and jumps to target level)
@@ -2574,7 +2588,9 @@
       won = true; state = STATE.END;
       if (typeof sfxLevelComplete === 'function') sfxLevelComplete();
       const lvl = LEVELS[currentLevel];
-      const remaining = collectibles.filter(c => !c.taken).length;
+      const remaining = collectibles.filter(c => !c.taken).length
+        + installs.filter(m => !m.done).length
+        + keypads.filter(k => !k.done).length;
       const timeBonus = Math.floor(timeRemaining); // 1 point per second saved
       let note = '';
       if (remaining === 0) { score += 500; note = 'Clean Punch List +500'; }
@@ -2611,9 +2627,11 @@
       if (isLastLevel) {
         submitToLeaderboard(playerName, score);
         renderLeaderboard(playerName, score);
+        renderRunSummary(true);
       } else {
         const lbEl = document.getElementById('leaderboard');
         if (lbEl) lbEl.style.display = 'none';
+        renderRunSummary(false);
       }
       setOverlay(endOverlay, true);
     }
@@ -2632,6 +2650,7 @@
             loseLife(); // last life: loseLife() decrements and runs game over
           } else {
             lives--;
+            runStats.callbacks++;
             updateLivesHud();
             sfxDeath();
           }
@@ -2689,9 +2708,10 @@
       .then(arr => {
         _lbFetchState = 'done';
         if (Array.isArray(arr)) { _writeCache(arr); return arr; }
+        _lbFetchState = 'error';
         return getLeaderboardCached();
       })
-      .catch(() => { _lbFetchState = 'done'; return getLeaderboardCached(); });
+      .catch(() => { _lbFetchState = 'error'; return getLeaderboardCached(); });
   }
   // Submit a score: optimistic local update, then fire-and-forget POST to the script.
   // Apps Script web apps require text/plain content-type to avoid CORS preflight.
@@ -2719,8 +2739,8 @@
     if (lb.length === 0) {
       // 'idle' or 'loading' before any fetch completes → show loading.
       // 'done' with empty result → show "be the first" prompt instead of forever-loading.
-      const msg = (_lbFetchState === 'done')
-        ? 'No scores yet — be the first!'
+      const msg = _lbFetchState === 'error' ? 'Leaderboard is offline right now'
+        : _lbFetchState === 'done' ? 'No scores yet. Be the first!'
         : 'Loading scores…';
       return '<div class="lb-title" style="opacity:0.6;">' + msg + '</div>';
     }
@@ -2763,9 +2783,43 @@
   // Pre-warm the cache once at page load so the first leaderboard view is instant.
   fetchLeaderboardRemote();
 
+  // End-of-run punch list, shown after the final level or a Game Over
+  function renderRunSummary(show) {
+    const el = document.getElementById('end-stats');
+    const shareBtn = document.getElementById('share-btn');
+    el.style.display = show ? 'grid' : 'none';
+    shareBtn.style.display = show ? '' : 'none';
+    shareBtn.textContent = 'Share score';
+    if (!show) return;
+    const r = runStats;
+    const rows = [
+      ['Wire pulled', r.wire], ['Tools grabbed', r.tools],
+      ['TVs mounted', r.tvs], ['Speakers installed', r.speakers],
+      ['Landscape lights set', r.lights], ['Trees lit', r.trees],
+      ['Keypads programmed', r.keypads],
+    ].filter(row => row[1] > 0);
+    rows.push(['Callbacks', r.callbacks]);
+    el.innerHTML = rows.map(([label, n]) =>
+      '<div>' + label + '<span class="stat-n">' + n + '</span></div>').join('');
+  }
+  document.getElementById('share-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('share-btn');
+    const url = location.origin + location.pathname;
+    const text = (playerName ? playerName + ' scored ' : 'I scored ') + score.toLocaleString()
+      + ' in System Integrators Simulator. Can you beat it?';
+    try {
+      if (navigator.share) { await navigator.share({ title: 'System Integrators Simulator', text, url }); return; }
+      await navigator.clipboard.writeText(text + ' ' + url);
+      btn.textContent = 'Link copied';
+    } catch (e) {
+      // Share sheet dismissed or clipboard blocked; nothing to do
+    }
+  });
+
   function loseLife() {
     sfxDeath();
     lives--;
+    runStats.callbacks++;
     updateLivesHud();
     if (lives <= 0) {
       state = STATE.END;
@@ -2780,6 +2834,7 @@
       if (againBtn) againBtn.textContent = 'Start Over';
       submitToLeaderboard(playerName, score);
       renderLeaderboard(playerName, score);
+      renderRunSummary(true);
       setOverlay(endOverlay, true);
     } else { resetLevel(false); }
   }
@@ -3131,7 +3186,7 @@
 
   // Level 2 goal — dark-wood door image, with a small Cs sign above
   function drawDoorGoal() {
-    if (LEVELS[currentLevel].theme !== 'trim-out') return;
+    if (!isHouseTheme(LEVELS[currentLevel].theme)) return;
     const x = levelGoal.x - camX;
     if (x + levelGoal.w < -2 || x > VIRT_W + 12) return;
     const y = levelGoal.y;
@@ -3176,7 +3231,7 @@
     const indoorThresholdX = (lvl.indoorThresholdX != null) ? lvl.indoorThresholdX : 450 * S;
     // For Level 2 v2 (uses Lv2_Floor tile), the floor strip is rendered by
     // drawLv2FloorStrip — we skip the procedural hardwood here to avoid double-drawing.
-    const isLv2v2 = lvl.theme === 'trim-out' && !!itemImg.Lv2_Floor;
+    const isLv2v2 = isHouseTheme(lvl.theme) && !!itemImg.Lv2_Floor;
     for (const pl of platforms) {
       const x = pl.x - camX;
       if (x + pl.w < -2 || x > VIRT_W + 2) continue;
@@ -3397,6 +3452,39 @@
           ctx.fillRect(x - 4, h.y + 2, 2, 1);
           ctx.fillRect(x + h.w + 2, h.y + 8, 2, 1);
         }
+      } else if (h.type === 'spool') {
+        // Runaway wire spool: wobbles as it rolls and pays out cable behind it
+        const img = itemImg.wireYellow;
+        const dir = h.vx > 0 ? 1 : -1;
+        ctx.strokeStyle = '#d9a520';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const tailX = x + h.w / 2 - dir * 10;
+        ctx.moveTo(tailX, GROUND_Y - 6);
+        for (let i = 1; i <= 6; i++) {
+          ctx.lineTo(tailX - dir * i * 12, GROUND_Y - 3 - ((i + (h.t >> 2)) % 2) * 3);
+        }
+        ctx.stroke();
+        if (img && img.complete) {
+          ctx.save();
+          ctx.translate(Math.round(x + h.w / 2), h.y + h.h);
+          ctx.rotate(Math.sin(h.t / 5) * 0.12);
+          ctx.drawImage(img, -h.w / 2, -h.h, h.w, h.h);
+          ctx.restore();
+        }
+      } else if (h.type === 'roomba') {
+        // Robot vacuum on patrol
+        const cx = Math.round(x + h.w / 2), by = h.y + h.h;
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(Math.round(x) + 2, by - 2, h.w - 4, 3);
+        ctx.fillStyle = '#23262b';
+        ctx.beginPath(); ctx.ellipse(cx, by - 9, h.w / 2, 9, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3b4048';
+        ctx.beginPath(); ctx.ellipse(cx, by - 12, h.w / 2 - 6, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8a9099';
+        ctx.fillRect(Math.round(h.vx > 0 ? x + h.w - 6 : x + 2), by - 10, 4, 6); // bumper on the leading side
+        ctx.fillStyle = ((frame >> 3) & 1) ? '#5cf08a' : '#1f7a3f';
+        ctx.fillRect(cx - 2, by - 15, 4, 2);
       } else if (h.type === 'burstPipe') {
         // Cycle through the 6 animation frames (~10 fps).
         const FRAMES = 6;
@@ -3434,8 +3522,164 @@
       // Damage zone is the puddle at the bottom of the sprite (~bottom 16 px)
       // plus a small slice of the falling water column above it.
       return { x: h.x + 4, y: h.y + h.h - 18, w: h.w - 8, h: 18 };
+    } else if (h.type === 'spool') {
+      return { x: h.x + 8, y: h.y + 10, w: h.w - 16, h: h.h - 10 };
+    } else if (h.type === 'roomba') {
+      return { x: h.x + 6, y: h.y + 4, w: h.w - 12, h: h.h - 4 };
     }
     return null;
+  }
+
+  // ---------- Checkpoints, installs, keypads, pop-ups ----------
+  function drawCheckpoints() {
+    for (const cpX of (LEVELS[currentLevel].checkpoints || [])) {
+      const x = Math.round(cpX - camX);
+      if (x < -40 || x > VIRT_W + 40) continue;
+      const active = respawnX >= cpX;
+      const top = GROUND_Y - 96;
+      ctx.fillStyle = '#2a2f36'; ctx.fillRect(x - 2, top, 4, 96);
+      ctx.fillStyle = '#4a525c'; ctx.fillRect(x - 2, top, 1, 96);
+      ctx.fillStyle = '#1a1d22'; ctx.fillRect(x - 8, GROUND_Y - 4, 16, 4);
+      // Pennant: grey until reached, then SI orange and waving
+      const wave = active ? Math.round(Math.sin(frame / 8) * 3) : 0;
+      ctx.fillStyle = active ? '#e8761f' : '#6b7280';
+      ctx.beginPath();
+      ctx.moveTo(x + 2, top + 2);
+      ctx.lineTo(x + 36, top + 12 + wave);
+      ctx.lineTo(x + 2, top + 24);
+      ctx.closePath(); ctx.fill();
+      if (active) { ctx.fillStyle = '#ffffff'; ctx.fillRect(x + 8, top + 10, 6, 6); }
+    }
+  }
+
+  function drawTvAt(cx, cy, w, h) {
+    const img = itemImg.tv;
+    if (img && img.complete) ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
+  }
+
+  function drawInstalls() {
+    const pulse = 0.45 + 0.35 * Math.sin(frame / 10);
+    for (const m of installs) {
+      const x = m.x - camX;
+      if (x < -80 || x > VIRT_W + 80) continue;
+      if (m.done) {
+        if (m.t === 'tv') {
+          drawTvAt(x, m.y, 96, 59);
+        } else {
+          ctx.save(); ctx.translate(Math.round(x), m.y); ctx.scale(2, 2);
+          drawSpeakerProc(0, 0);
+          ctx.restore();
+        }
+        continue;
+      }
+      // Empty mount: dashed outline, brighter when you're carrying the item
+      const ready = carrying[m.t] > 0;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(232, 118, 31, ' + (ready ? pulse + 0.2 : 0.35).toFixed(2) + ')';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6, 5]);
+      if (m.t === 'tv') {
+        ctx.strokeRect(Math.round(x - 48), m.y - 30, 96, 60);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(40, 40, 44, 0.55)';
+        ctx.fillRect(Math.round(x - 14), m.y - 6, 28, 12); // wall bracket
+      } else {
+        ctx.beginPath(); ctx.arc(Math.round(x), m.y, 16, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawCarried() {
+    const items = [];
+    if (carrying.tv > 0) items.push({ t: 'tv', n: carrying.tv });
+    if (carrying.speaker > 0) items.push({ t: 'speaker', n: carrying.speaker });
+    if (!items.length) return;
+    let x = Math.round(player.x - camX + player.w / 2 - (items.length * 52) / 2);
+    const y = Math.round(player.y - 44);
+    for (const it of items) {
+      const img = itemImg[it.t];
+      if (img && img.complete) {
+        const w = it.t === 'tv' ? 46 : 22, h = it.t === 'tv' ? 28 : 32;
+        ctx.drawImage(img, x + (46 - w) / 2, y + (32 - h), w, h);
+      }
+      if (it.n > 1) drawPixelText('x' + it.n, x + 40, y + 6, '#ffffff', 14);
+      x += 52;
+    }
+  }
+
+  // Commissioning: unprogrammed rooms sit in the dark
+  function sectionDarkness(sec) {
+    if (sec.type === 'exterior') return 0.35; // dusk outside
+    const k = keypads.find(kp => kp.room === sec.bg);
+    return k ? 0.72 * (1 - k.litT) : 0;
+  }
+  function drawHouseDarkness() {
+    if (LEVELS[currentLevel].theme !== 'commissioning') return;
+    for (const sec of LEVELS[currentLevel].bgSections) {
+      const sx = Math.round(sec.x - camX);
+      if (sx + sec.w < -2 || sx > VIRT_W + 2) continue;
+      const d = sectionDarkness(sec);
+      if (d > 0) { ctx.fillStyle = 'rgba(6, 9, 22, ' + d.toFixed(3) + ')'; ctx.fillRect(sx, 0, sec.w, VIRT_H); }
+      const k = keypads.find(kp => kp.room === sec.bg);
+      if (k && k.litT > 0) {
+        ctx.fillStyle = 'rgba(255, 196, 120, ' + (0.08 * k.litT).toFixed(3) + ')';
+        ctx.fillRect(sx, 0, sec.w, GROUND_Y);
+      }
+    }
+  }
+
+  // Bronze 4-button keypad, after the Lutron Alisse
+  function drawKeypads() {
+    for (const k of keypads) {
+      const x = Math.round(k.x - camX), y = k.y;
+      if (x + k.w < -20 || x > VIRT_W + 20) continue;
+      if (!k.done) {
+        const a = 0.35 + 0.35 * Math.sin(frame / 9);
+        ctx.strokeStyle = 'rgba(232, 118, 31, ' + a.toFixed(2) + ')';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 6, y - 6, k.w + 12, k.h + 12);
+      }
+      ctx.fillStyle = '#1f1812'; ctx.fillRect(x, y, k.w, k.h);
+      ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x + 1, y + 1, k.w - 2, k.h - 2);
+      ctx.fillStyle = '#5e4a38'; ctx.fillRect(x + 1, y + 1, k.w - 2, 2);
+      ctx.fillStyle = '#2e241b'; ctx.fillRect(x + 1, y + k.h - 3, k.w - 2, 2);
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 2; c++) {
+          const bx = x + 7 + c * 12, by = y + 7 + r * 12;
+          ctx.fillStyle = '#b08d57'; ctx.fillRect(bx, by, 6, 6);
+          ctx.fillStyle = '#2a211a'; ctx.fillRect(bx + 1, by + 1, 4, 4);
+          let led = '#3a2e24';
+          if (k.done) led = '#e6f4ff';
+          else if (r === 0 && c === 0 && ((frame >> 4) & 1)) led = '#ff8a2a';
+          ctx.fillStyle = led; ctx.fillRect(bx + 2, by + 7, 2, 1);
+        }
+      }
+      if (k.done) {
+        ctx.fillStyle = 'rgba(220, 240, 255, 0.18)';
+        ctx.fillRect(x - 4, y - 4, k.w + 8, k.h + 8);
+      }
+    }
+  }
+
+  function drawPixelText(text, x, y, color, size) {
+    ctx.save();
+    ctx.font = '900 ' + (size || 16) + 'px "Courier New", ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(16, 18, 22, 0.9)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+  function drawFloatTexts() {
+    for (const f of floatTexts) {
+      ctx.globalAlpha = f.t > 40 ? (60 - f.t) / 20 : 1;
+      drawPixelText(f.text, Math.round(f.x - camX), Math.round(f.y - f.t * 0.6), f.color, 16);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Van — the SI Vermont service van parked at the level start.
@@ -3459,7 +3703,7 @@
     // Level 2 v2 — use the simple Room Separator post sprite (preferred over the
     // cased-opening divider). Falls back to the divider only if the separator
     // hasn't loaded yet.
-    if (lvl.theme === 'trim-out' && (itemImg.Lv2_RoomSeparator || itemImg.Lv2_RoomDivider)) {
+    if (isHouseTheme(lvl.theme) && (itemImg.Lv2_RoomSeparator || itemImg.Lv2_RoomDivider)) {
       const sprite = imgFor('Lv2_RoomSeparator') || imgFor('Lv2_RoomDivider');
       if (!sprite || (sprite instanceof HTMLImageElement && !sprite.complete)) return;
       const w = 40;
@@ -3468,6 +3712,14 @@
         const x = Math.round(bx - halfW - camX);
         if (x + w < -2 || x > VIRT_W + 2) continue;
         ctx.drawImage(sprite, x, 0, w, VIRT_H);
+        if (lvl.theme === 'commissioning') {
+          // Shade the post to match the darker of the two rooms it joins
+          let d = 0;
+          for (const sec of lvl.bgSections) {
+            if (sec.x === bx || sec.x + sec.w === bx) d = Math.max(d, sectionDarkness(sec));
+          }
+          if (d > 0) { ctx.fillStyle = 'rgba(6, 9, 22, ' + d.toFixed(3) + ')'; ctx.fillRect(x, 0, w, VIRT_H); }
+        }
       }
       return;
     }
@@ -3986,6 +4238,18 @@
     _tone(freq, freq * 1.5, 0.08, 'square', 0.14);
   }
 
+  // Install / program: a bright three-note "done" chime
+  function sfxInstall() {
+    _tone(784, 784, 0.07, 'triangle', 0.16);
+    setTimeout(() => _tone(1047, 1047, 0.07, 'triangle', 0.16), 70);
+    setTimeout(() => _tone(1568, 1568, 0.14, 'triangle', 0.14), 140);
+  }
+  // Checkpoint: soft two-note confirm
+  function sfxCheckpoint() {
+    _tone(523, 523, 0.08, 'square', 0.10);
+    setTimeout(() => _tone(784, 784, 0.12, 'square', 0.10), 90);
+  }
+
   // Inline onclick fallback path for the intro Start button.
   // Goes directly to the merged title-overlay (name + character).
   window.__introStart = function() {
@@ -4087,7 +4351,7 @@
     const theme = LEVELS[currentLevel].theme;
     // Level 2 v2 uses its own composited rendering (chroma-keyed rooms over
     // tiled roof / mountains / floor layers). Detect by presence of Lv2_Floor.
-    const isLv2v2 = theme === 'trim-out' && !!itemImg.Lv2_Floor;
+    const isLv2v2 = isHouseTheme(theme) && !!itemImg.Lv2_Floor;
     if (theme === 'night') {
       drawNightSky();
       drawNightTreeLayer(0.5);
@@ -4128,14 +4392,20 @@
     // Pit texture under the ground band — only on Level 1 (Rough In) where the holes
     // are dirt-themed gaps. Level 2 indoors and Level 3 night don't fit a dirt pit.
     if (theme === 'rough-in') drawPits();
+    drawInstalls();
     drawPlatforms(); drawLadders();
-    drawHazards();
     drawDoorGoal();
     drawWarpDoors();
+    drawHouseDarkness();
+    drawCheckpoints();
+    drawHazards();
+    drawKeypads();
     drawCollectibles();
     drawPlayer();
+    drawCarried();
     // Foreground beams render AFTER the player so the player passes behind them
     drawBeams();
+    drawFloatTexts();
     if (DEBUG) drawFps();
     requestAnimationFrame(frameLoop);
   }
@@ -4161,6 +4431,15 @@
     ctx.restore();
   }
   resetLevel(true);
+  // Test hook, only with ?debug
+  if (DEBUG) window.__pl = {
+    player, get state() { return state; }, get lives() { return lives; }, get score() { return score; },
+    get runStats() { return runStats; }, get installs() { return installs; }, get keypads() { return keypads; },
+    get carrying() { return carrying; }, get hazards() { return hazards; }, get respawnX() { return respawnX; },
+    get level() { return currentLevel; }, loadLevel: (i) => loadLevel(i, { keepScore: true }),
+    get loading() { return isLoadingLevel; },
+    step: (n) => { for (let i = 0; i < (n || 1); i++) update(); },
+  };
   requestAnimationFrame(frameLoop);
   window.addEventListener('blur', () => { if (state === STATE.PLAY) togglePause(); });
 })();
