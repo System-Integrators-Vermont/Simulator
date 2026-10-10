@@ -1,5 +1,7 @@
 # System Integrators Simulator
 
+**Play it: https://system-integrators-vermont.github.io/Simulator/**
+
 A side-scrolling browser game from System Integrators Vermont. You play an SI technician working a Vermont smart home job across three levels:
 
 1. **Rough In** - run wire through the framing before the drywall goes up.
