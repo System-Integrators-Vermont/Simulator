@@ -3009,10 +3009,39 @@
     ctx.beginPath(); ctx.arc(cx, y + 9, 3, 0, Math.PI * 2); ctx.fill();          // tweeter
     ctx.beginPath(); ctx.arc(cx, y + h - 15, w / 2 - 3, 0, Math.PI * 2); ctx.fill(); // woofer
   }
+  // How "on" a device is: Trim Out installs are on; in Commissioning a room's
+  // screens wake up with its lights once its keypad is programmed
+  function powerFor(m) {
+    if (!keypads.length) return 1;
+    const sec = LEVELS[currentLevel].bgSections.find(sc => m.x >= sc.x && m.x < sc.x + sc.w);
+    const k = sec && keypads.find(kp => kp.room === sec.bg);
+    return k ? k.litT : 1;
+  }
   function drawInstalled(m) {
     const x = m.x - camX;
-    if (m.t === 'tv') drawTv(x, m.y, m.w, m.h, true);
+    const on = powerFor(m);
+    if (m.t === 'tv') drawTv(x, m.y, m.w, m.h, on > 0.5);
+    else if (m.t === 'screen') drawProjection(x, m.y, m.w, m.h, on);
     else drawWallSpeaker(x, m.y, m.w, m.h, m.finish);
+  }
+  // Projector image on the theater screen: cool white field, SI square centred
+  function drawProjection(cx, cy, w, h, on) {
+    if (on <= 0) return;
+    const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+    ctx.globalAlpha = on;
+    const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, w * 0.6);
+    g.addColorStop(0, '#3a5672'); g.addColorStop(1, '#16222f');
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    const sq = 40;
+    ctx.fillStyle = '#e8761f'; ctx.fillRect(Math.round(cx - sq / 2), Math.round(cy - sq / 2) - 10, sq, sq);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(cx - sq / 4), Math.round(cy - sq / 4) - 10, sq / 2, sq / 2);
+    ctx.font = '900 14px "Courier New", ui-monospace, monospace';
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(240, 238, 228, 0.85)';
+    ctx.fillText('SYSTEM INTEGRATORS', cx, Math.round(cy + sq / 2 + 12));
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(200, 225, 255, 0.10)';   // spill onto the frame
+    ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+    ctx.globalAlpha = 1;
   }
   // Wall colour sampled once from the room art, for covering a TV that's painted in
   function coverColor(m) {

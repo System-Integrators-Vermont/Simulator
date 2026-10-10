@@ -962,7 +962,8 @@
     lvl.theme = 'commissioning';
     lvl.collectiblesInit = [];
     // What you installed in Trim Out is on the walls now
-    lvl.decorInstalls = lvl.installs;
+    // plus the theater's projection screen (frame measured from the art)
+    lvl.decorInstalls = lvl.installs.concat([{ t: 'screen', x: 6319, y: 255, w: 436, h: 194, room: 'Theater' }]);
     lvl.installs = [];
     lvl.secretBadge = { x: 7706, y: 200 }; // above the king bed
     // Keypads centred 48" off the floor (96 px), on the first clear wall inside
