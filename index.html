@@ -85,6 +85,15 @@
     text-shadow: 0 1px 0 #1a1a1a, 0 0 6px rgba(230, 57, 70, 0.4);
     transition: opacity 200ms, transform 200ms, filter 200ms;
   }
+  #carry-card { display: none; align-items: center; gap: 8px; padding: 6px 10px; }
+  #carry-card.shown { display: flex; }
+  #carry-card.pop { animation: carry-pop 260ms ease-out; }
+  @keyframes carry-pop { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  .carry-label { font-size: 0.7em; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.7; }
+  #carry-items { display: flex; gap: 8px; align-items: center; }
+  .carry-item { display: flex; align-items: center; gap: 3px; font-size: 0.85em; }
+  .ico-tv { display: inline-block; width: 22px; height: 13px; background: #16181c; border: 2px solid #0d0e10; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); }
+  .ico-spk { display: inline-block; width: 8px; height: 16px; background: #efebe3; border: 1px solid #c9c4ba; }
   .life.lost { opacity: 0.18; filter: grayscale(1); transform: scale(0.85); }
   #touch { position: absolute; left: 0; right: 0; bottom: 0; height: 36%; display: none; pointer-events: none; z-index: 6; }
   body.touch #touch { display: block; }
@@ -204,6 +213,7 @@
           <span id="mute-icon">&#x1F50A;</span>
         </button>
         <div id="score"><span class="score-label">SCORE</span><span id="score-val">0</span></div>
+        <div class="hud-card" id="carry-card"><span class="carry-label">Carrying</span><span id="carry-items"></span></div>
       </div>
       <audio id="bgm" src="assets/paper-lanterns.mp3" loop preload="auto" style="display:none;"></audio>
       <div class="hud-card" id="level-card">
@@ -1046,6 +1056,8 @@
   const GROUND_Y = 232 * S;
 
   const { TYPES, KEYPAD_POINTS, STAT_FOR_TYPE, LEVELS, ROOM_NAMES } = window.SIS_DATA;
+  const KEYPAD_HOLD = 30; // frames standing at a keypad to program it
+  const HOVER = 24;       // collectibles float this far above the surface below them
   ASSET_BUNDLES.level4 = ASSET_BUNDLES.level2.slice();
 
   // Trim Out and Commissioning share the chroma-keyed house renderer.
@@ -1062,7 +1074,8 @@
   let hazards = [];
   // Set of tree ids whose phone has been collected — drawTrees uses this to swap in the lit variant.
   let litTrees = new Set();
-  let installs = [];                    // Trim Out mount points ({t, x, y, done})
+  let installs = [];                    // Trim Out mount points ({t, x, y, w, h, done})
+  let decorInstalls = [];               // gear already on the walls (Commissioning)
   let keypads = [];                     // Commissioning keypads ({x, y, w, h, room, done, litT})
   let carrying = { tv: 0, speaker: 0 }; // picked up but not yet installed
   let respawnX = 0;                     // furthest checkpoint reached this level
@@ -1231,7 +1244,12 @@
     }
   }
 
+  // Only the most recent load may finish the loading screen; an older load
+  // finishing first (say, Level 1 still loading when you jump to Level 3)
+  // must not start play before the new level's art has arrived.
+  let loadToken = 0;
   function loadLevel(idx, options) {
+    const token = ++loadToken;
     doLoadLevel(idx, options);
     const bundleName = 'level' + (idx + 1);
     if (!bundleLoaded(bundleName)) {
@@ -1248,7 +1266,9 @@
         });
       });
       ensureBundle(bundleName).then(() => {
+        if (token !== loadToken) return;
         adjustLv2ObstacleCollision();
+        placeCollectibles();
         isLoadingLevel = false;
         hideLoadingOverlay();
       });
@@ -1256,7 +1276,7 @@
       // force-hide the loading screen after 60s so the player isn't stranded
       // on a blue screen.
       setTimeout(() => {
-        if (isLoadingLevel) {
+        if (isLoadingLevel && token === loadToken) {
           console.warn('Loading timed out; forcing overlay hide after 60s');
           isLoadingLevel = false;
           hideLoadingOverlay();
@@ -1266,6 +1286,7 @@
       // Bundle already loaded (respawn / re-entry) — collision must still
       // be adjusted because doLoadLevel rebuilt the platforms array.
       adjustLv2ObstacleCollision();
+      placeCollectibles();
     }
     // Eagerly start loading the NEXT level's assets in the background so the
     // transition is instant. The bundle decodes asynchronously while the
@@ -1301,6 +1322,7 @@
     else if (!options.keepScore) runLog = [];
     curEntry = newEntry(idx);
     installs  = (lvl.installs || []).map(m => ({ ...m, done: false }));
+    decorInstalls = (lvl.decorInstalls || []).map(m => ({ ...m }));
     keypads   = (lvl.keypads || []).map(k => ({ ...k, done: false, litT: 0 }));
     carrying  = { tv: 0, speaker: 0 };
     respawnX  = lvl.spawnX;
@@ -1565,6 +1587,7 @@
 
   // Dual forward focus: more screen ahead of the way you're facing (Itay Keren)
   let lookFrac = 0.38;
+  let debugCam = null; // set by the ?debug frame() helper
   function cameraTarget() {
     const minCX = LEVELS[currentLevel].minX || 0;
     return Math.max(minCX, Math.min(levelW - VIRT_W, player.x - VIRT_W * lookFrac));
@@ -1707,13 +1730,14 @@
     if (player.x < _minPX) { player.x = _minPX; player.vx = 0; }
     if (player.y > VIRT_H + 40 && player.alive) loseLife();
 
-    camX += (cameraTarget() - camX) * 0.15;
+    if (debugCam !== null) camX = debugCam;
+    else camX += (cameraTarget() - camX) * 0.15;
 
     for (const c of collectibles) {
       if (c.taken) continue;
       c.bob += 0.08;
       // Hitbox sized for the actual item sprite (~22 tall).
-      const cb = { x: c.x - 10, y: c.y - 11 + Math.sin(c.bob) * 1.2, w: 20, h: 22 };
+      const cb = collectRect(c);
       if (rectsOverlap(player, cb)) {
         c.taken = true;
         sfxPickup(c.t);
@@ -1735,6 +1759,7 @@
       }
     }
 
+    updateCarryHud();
     // Trim Out: walking past a mount point while carrying the right item installs it
     for (const m of installs) {
       if (m.done || carrying[m.t] <= 0) continue;
@@ -1754,7 +1779,10 @@
     // Commissioning: touching a keypad programs it and lights the room
     for (const k of keypads) {
       if (k.done) { k.litT = Math.min(1, k.litT + 0.04); continue; }
-      if (rectsOverlap(player, k)) {
+      // Stand at the keypad for half a second to program it
+      const atKeypad = player.onGround && Math.abs((player.x + player.w / 2) - (k.x + k.w / 2)) < 24 && Math.abs(player.vx) < 1.2;
+      k.progress = atKeypad ? (k.progress || 0) + 1 : Math.max(0, (k.progress || 0) - 2);
+      if (k.progress >= KEYPAD_HOLD) {
         k.done = true;
         curEntry.keypads++;
         score += KEYPAD_POINTS; updateScoreHud();
@@ -1783,8 +1811,8 @@
         if (h.type === 'roomba') hint('roomba', 'Robot vacuum on patrol. Hop over it');
       }
     }
-    if (carrying.tv + carrying.speaker > 0) hint('carry', 'Carry it to the orange outline to install it');
-    if (keypads.some(k => !k.done && k.x - player.x < 600)) hint('keypad', 'Jump up to the glowing keypad to program the room');
+    if (carrying.tv + carrying.speaker > 0) hint('carry', 'Carry it to the dashed outline its size');
+    if (keypads.some(k => !k.done && k.x - player.x < 600)) hint('keypad', 'Stand at the glowing keypad to program the room');
     if (collectibles.some(c => c.t === 'phone' && !c.taken && c.x - player.x < 500 && c.x > player.x)) hint('phone', 'Grab the phone to light up the tree');
 
     // Patrolling hazards (wire spools, robot vacuums)
@@ -2629,6 +2657,73 @@
     ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Surface under a point: the highest walkable top at x that's at or below y.
+  // Uses the visible top of furniture, not the slightly lower collision top.
+  function surfaceBelow(x, y) {
+    let best = null;
+    for (const pl of platforms) {
+      if (x < pl.x || x > pl.x + pl.w) continue;
+      const top = pl.y - (pl._visualOffset || 0);
+      if (top >= y - 2 && (best === null || top < best)) best = top;
+    }
+    return best;
+  }
+  // In the house, tools hover a fixed height over the furniture or floor below,
+  // and boxes rest on the floor. Outdoors, items keep their designed arcs and
+  // just get a shadow on whatever is under them.
+  function placeCollectibles() {
+    const house = isHouseTheme(LEVELS[currentLevel].theme);
+    for (const c of collectibles) {
+      const def = TYPES[c.t];
+      if (def.box) { c.surfaceY = GROUND_Y; c.y = GROUND_Y - def.box.h / 2; continue; }
+      if (house && c.t !== 'badge') {
+        let top = GROUND_Y;
+        for (const pl of platforms) {
+          if (c.x >= pl.x && c.x <= pl.x + pl.w) top = Math.min(top, pl.y - (pl._visualOffset || 0));
+        }
+        c.y = top - HOVER - 18;
+      }
+      c.surfaceY = surfaceBelow(c.x, c.y);
+    }
+  }
+  function collectRect(c) {
+    const def = TYPES[c.t];
+    if (def.box) return { x: c.x - def.box.w / 2, y: GROUND_Y - def.box.h, w: def.box.w, h: def.box.h };
+    return { x: c.x - 12, y: c.y - 14, w: 24, h: 28 };
+  }
+  // Shipping carton: kraft board, top flaps, SI tape, printed device outline
+  function drawBox(c, def) {
+    const w = def.box.w, h = def.box.h;
+    const x = Math.round(c.x - camX - w / 2), y = GROUND_Y - h;
+    ctx.fillStyle = 'rgba(20, 14, 8, 0.28)'; ctx.fillRect(x + 3, GROUND_Y - 3, w, 4); // contact shadow
+    ctx.fillStyle = '#8a6a42'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#c49a64'; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.fillStyle = '#b48a56'; ctx.fillRect(x + 1, y + 1, w - 2, 5);         // flap
+    ctx.fillStyle = '#9c7746'; ctx.fillRect(x + 1, y + 6, w - 2, 1);
+    ctx.fillStyle = '#e8761f'; ctx.fillRect(Math.round(x + w / 2 - 4), y, 8, 12); // SI tape
+    ctx.fillStyle = 'rgba(70, 50, 28, 0.75)';
+    if (c.t === 'tv') {
+      const ix = Math.round(x + w / 2 - 26), iy = y + 22;
+      ctx.fillRect(ix, iy, 52, 2); ctx.fillRect(ix, iy + 28, 52, 2);
+      ctx.fillRect(ix, iy, 2, 30); ctx.fillRect(ix + 50, iy, 2, 30);
+      ctx.fillRect(ix + 22, iy + 30, 8, 4);
+      drawPixelText(def.box.label, x + w / 2, y + h - 12, '#f4e2c4', 12);
+    } else {
+      const ix = Math.round(x + w / 2 - 6), iy = y + 18;
+      ctx.fillRect(ix, iy, 12, 2); ctx.fillRect(ix, iy + 26, 12, 2);
+      ctx.fillRect(ix, iy, 2, 28); ctx.fillRect(ix + 10, iy, 2, 28);
+      ctx.fillRect(ix + 4, iy + 5, 4, 3); ctx.fillRect(ix + 3, iy + 15, 6, 6);
+    }
+  }
+  function drawHoverShadow(c, cx, lift) {
+    if (c.surfaceY == null) return;
+    const gap = c.surfaceY - c.y;
+    if (gap > 160) return;
+    const r = Math.max(4, 11 - lift * 0.5 - gap * 0.02);
+    ctx.fillStyle = LEVELS[currentLevel].theme === 'night' ? 'rgba(0, 0, 0, 0.35)' : 'rgba(30, 20, 10, 0.22)';
+    ctx.beginPath(); ctx.ellipse(cx, c.surfaceY - 1, r, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
   // SI badge: the orange square from the cap logo, with a glint sweeping across
   function drawBadge(cx, cy) {
     const y = Math.round(cy + Math.sin(frame / 14) * 4);
@@ -2646,7 +2741,10 @@
       if (c.taken) continue;
       const def = TYPES[c.t];
       const cx = Math.round(c.x - camX);
-      const cy = Math.round(c.y + Math.sin(c.bob) * 1.2);
+      if (def.box) { if (cx > -80 && cx < VIRT_W + 80) drawBox(c, def); continue; }
+      const lift = Math.sin(c.bob) * 3;
+      const cy = Math.round(c.y + lift);
+      drawHoverShadow(c, cx, lift);
       if (def.drawProc === 'speaker') {
         drawSpeakerProc(cx, cy);
         continue;
@@ -2819,60 +2917,125 @@
     }
   }
 
-  function drawTvAt(cx, cy, w, h) {
-    const img = itemImg.tv;
-    if (img && img.complete) ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), w, h);
+  // ---------- Installed gear, drawn at real proportions ----------
+  // All positions are whole pixels so edges stay crisp. Each wall device gets
+  // a 1 px rim and a soft 2 px shadow down and to the right so it reads as
+  // attached to the wall rather than floating over it.
+  function wallShadow(x, y, w, h) {
+    ctx.fillStyle = 'rgba(20, 14, 8, 0.22)';
+    ctx.fillRect(x + 2, y + 2, w, h);
   }
-
+  // Slim flat panel: black bezel, dark glass with a faint reflection,
+  // SI square on the screen once it's on
+  function drawTv(cx, cy, w, h, on) {
+    const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+    wallShadow(x, y, w, h);
+    ctx.fillStyle = '#0d0e10'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = on ? '#1c2a3a' : '#16181c'; ctx.fillRect(x + 2, y + 2, w - 4, h - 5);
+    if (on) {
+      const g = ctx.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, 'rgba(120, 170, 220, 0.30)'); g.addColorStop(1, 'rgba(40, 70, 110, 0.10)');
+      ctx.fillStyle = g; ctx.fillRect(x + 2, y + 2, w - 4, h - 5);
+      const s = Math.round(h * 0.22);
+      ctx.fillStyle = '#e8761f'; ctx.fillRect(Math.round(cx - s / 2), Math.round(cy - s / 2) - 1, s, s);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(cx - s / 4), Math.round(cy - s / 4) - 1, Math.round(s / 2), Math.round(s / 2));
+    }
+    // Diagonal glare in the top-left third
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = 0; i < Math.round(w / 3); i++) ctx.fillRect(x + 2 + i, y + 2, 1, Math.max(0, Math.round((h - 5) * 0.5 - i * 0.6)));
+    ctx.fillStyle = '#2a2c30'; ctx.fillRect(x, y + h - 3, w, 1);          // chin
+    ctx.fillStyle = on ? '#5cf08a' : '#a33'; ctx.fillRect(Math.round(cx) - 1, y + h - 2, 2, 1); // power LED
+  }
+  // In-wall speaker: paintable white frame, perforated grille, woofer and tweeter hints
+  // Theater speakers get black fabric grilles so they disappear into the walls
+  function drawWallSpeaker(cx, cy, w, h, finish) {
+    const x = Math.round(cx - w / 2), y = Math.round(cy - h / 2);
+    const black = finish === 'black';
+    wallShadow(x, y, w, h);
+    ctx.fillStyle = black ? '#0b0c0f' : '#c9c4ba'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = black ? '#1a1c21' : '#efebe3'; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.fillStyle = black ? 'rgba(255, 255, 255, 0.06)' : 'rgba(80, 76, 70, 0.28)';
+    for (let gy = y + 3; gy < y + h - 2; gy += 2)
+      for (let gx = x + 3 + ((gy >> 1) & 1); gx < x + w - 2; gx += 2) ctx.fillRect(gx, gy, 1, 1);
+    ctx.fillStyle = 'rgba(60, 56, 52, 0.22)';
+    ctx.beginPath(); ctx.arc(cx, y + 9, 3, 0, Math.PI * 2); ctx.fill();          // tweeter
+    ctx.beginPath(); ctx.arc(cx, y + h - 15, w / 2 - 3, 0, Math.PI * 2); ctx.fill(); // woofer
+  }
+  function drawInstalled(m) {
+    const x = m.x - camX;
+    if (m.t === 'tv') drawTv(x, m.y, m.w, m.h, true);
+    else drawWallSpeaker(x, m.y, m.w, m.h, m.finish);
+  }
+  // Wall colour sampled once from the room art, for covering a TV that's painted in
+  function coverColor(m) {
+    if (m._cover) return m._cover;
+    const sec = LEVELS[currentLevel].bgSections.find(sc => m.x >= sc.x && m.x < sc.x + sc.w);
+    const cv = sec && chromaImg[sec.bg];
+    if (!cv || !cv.getContext) return null;
+    try {
+      const px = cv.getContext('2d').getImageData(Math.round(m.x - m.w / 2 - 10 - sec.x), Math.round(m.y), 1, 1).data;
+      m._cover = 'rgb(' + px[0] + ',' + px[1] + ',' + px[2] + ')';
+    } catch (e) { m._cover = null; }
+    return m._cover;
+  }
+  function drawTapeOutline(x, y, w, h, alpha) {
+    const t = 4; // tape width
+    ctx.globalAlpha = Math.min(1, alpha);
+    ctx.fillStyle = '#3f8fd2';
+    ctx.fillRect(x - 2, y, w + 4, t);             // top strip runs past the corners
+    ctx.fillRect(x - 2, y + h - t, w + 4, t);     // bottom
+    ctx.fillRect(x, y - 2, t, h + 4);             // left strip overlaps
+    ctx.fillRect(x + w - t, y - 2, t, h + 4);     // right
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';  // tape sheen
+    ctx.fillRect(x - 2, y, w + 4, 1); ctx.fillRect(x - 2, y + h - t, w + 4, 1);
+    ctx.globalAlpha = 1;
+  }
   function drawInstalls() {
-    const pulse = 0.45 + 0.35 * Math.sin(frame / 10);
+    const pulse = 0.5 + 0.35 * Math.sin(frame / 10);
+    for (const m of decorInstalls) {
+      if (m.x - camX > -140 && m.x - camX < VIRT_W + 140) drawInstalled(m);
+    }
     for (const m of installs) {
       const x = m.x - camX;
-      if (x < -80 || x > VIRT_W + 80) continue;
-      if (m.done) {
-        if (m.t === 'tv') {
-          drawTvAt(x, m.y, 96, 59);
-        } else {
-          ctx.save(); ctx.translate(Math.round(x), m.y); ctx.scale(2, 2);
-          drawSpeakerProc(0, 0);
-          ctx.restore();
-        }
-        continue;
+      if (x < -140 || x > VIRT_W + 140) continue;
+      if (m.done) { drawInstalled(m); continue; }
+      const bx = Math.round(x - m.w / 2), by = Math.round(m.y - m.h / 2);
+      if (m.coverArt) {
+        const c = coverColor(m);
+        if (c) { ctx.fillStyle = c; ctx.fillRect(bx - 3, by - 3, m.w + 6, m.h + 6); }
       }
-      // Empty mount: dashed outline, brighter when you're carrying the item
+      // Empty mount: blue painter's tape marking the exact footprint, the way
+      // installers lay out a wall, plus the bracket or back box roughed in.
+      // The tape brightens while you carry the matching item.
       const ready = carrying[m.t] > 0;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(232, 118, 31, ' + (ready ? pulse + 0.2 : 0.35).toFixed(2) + ')';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([6, 5]);
+      drawTapeOutline(bx, by, m.w, m.h, ready ? pulse + 0.15 : 0.8);
+      ctx.fillStyle = 'rgba(40, 40, 44, 0.6)';
       if (m.t === 'tv') {
-        ctx.strokeRect(Math.round(x - 48), m.y - 30, 96, 60);
-        ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(40, 40, 44, 0.55)';
-        ctx.fillRect(Math.round(x - 14), m.y - 6, 28, 12); // wall bracket
+        ctx.fillRect(Math.round(x) - 20, Math.round(m.y) - 10, 40, 4);  // wall plate rails
+        ctx.fillRect(Math.round(x) - 20, Math.round(m.y) + 6, 40, 4);
+        ctx.fillRect(Math.round(x) - 3, Math.round(m.y) + 14, 6, 6);    // recessed power and HDMI box
       } else {
-        ctx.beginPath(); ctx.arc(Math.round(x), m.y, 16, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillRect(bx + 3, by + 3, m.w - 6, 2);                       // back box ears
+        ctx.fillRect(bx + 3, by + m.h - 5, m.w - 6, 2);
       }
-      ctx.restore();
     }
   }
 
-  function drawCarried() {
-    const items = [];
-    if (carrying.tv > 0) items.push({ t: 'tv', n: carrying.tv });
-    if (carrying.speaker > 0) items.push({ t: 'speaker', n: carrying.speaker });
-    if (!items.length) return;
-    let x = Math.round(player.x - camX + player.w / 2 - (items.length * 52) / 2);
-    const y = Math.round(player.y - 44);
-    for (const it of items) {
-      const img = itemImg[it.t];
-      if (img && img.complete) {
-        const w = it.t === 'tv' ? 46 : 22, h = it.t === 'tv' ? 28 : 32;
-        ctx.drawImage(img, x + (46 - w) / 2, y + (32 - h), w, h);
-      }
-      if (it.n > 1) drawPixelText('x' + it.n, x + 40, y + 6, '#ffffff', 14);
-      x += 52;
-    }
+  // Carried items live in the HUD slot, not over your head
+  const carryCard = document.getElementById('carry-card');
+  const carryItems = document.getElementById('carry-items');
+  let _carryKey = '';
+  function updateCarryHud() {
+    const key = carrying.tv + ',' + carrying.speaker;
+    if (key === _carryKey) return;
+    const grew = (carrying.tv + carrying.speaker) > _carryKey.split(',').reduce((a, n) => a + (+n || 0), 0);
+    _carryKey = key;
+    const parts = [];
+    if (carrying.tv) parts.push('<span class="carry-item"><span class="ico-tv"></span>' + (carrying.tv > 1 ? '×' + carrying.tv : '') + '</span>');
+    if (carrying.speaker) parts.push('<span class="carry-item"><span class="ico-spk"></span>' + (carrying.speaker > 1 ? '×' + carrying.speaker : '') + '</span>');
+    carryItems.innerHTML = parts.join('');
+    carryCard.classList.toggle('shown', parts.length > 0);
+    if (grew) { carryCard.classList.remove('pop'); void carryCard.offsetWidth; carryCard.classList.add('pop'); }
   }
 
   // Commissioning: unprogrammed rooms sit in the dark
@@ -2896,35 +3059,46 @@
     }
   }
 
-  // Bronze 4-button keypad, after the Lutron Alisse
+  // Bronze 4-button keypad after the Lutron Alisse: 14 x 20 plate centred 48"
+  // off the floor. Unprogrammed keypads pulse a soft halo; standing at one
+  // fills a ring around it.
   function drawKeypads() {
     for (const k of keypads) {
-      const x = Math.round(k.x - camX), y = k.y;
-      if (x + k.w < -20 || x > VIRT_W + 20) continue;
+      const x = Math.round(k.x - camX), y = Math.round(k.y);
+      if (x + k.w < -30 || x > VIRT_W + 30) continue;
+      const cx = x + k.w / 2, cy = y + k.h / 2;
       if (!k.done) {
-        const a = 0.35 + 0.35 * Math.sin(frame / 9);
-        ctx.strokeStyle = 'rgba(232, 118, 31, ' + a.toFixed(2) + ')';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(x - 6, y - 6, k.w + 12, k.h + 12);
+        const a = 0.25 + 0.25 * Math.sin(frame / 9);
+        const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, 26);
+        g.addColorStop(0, 'rgba(255, 150, 60, ' + a.toFixed(2) + ')'); g.addColorStop(1, 'rgba(255, 150, 60, 0)');
+        ctx.fillStyle = g; ctx.fillRect(cx - 26, cy - 26, 52, 52);
+      } else {
+        const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 20);
+        g.addColorStop(0, 'rgba(225, 240, 255, 0.35)'); g.addColorStop(1, 'rgba(225, 240, 255, 0)');
+        ctx.fillStyle = g; ctx.fillRect(cx - 20, cy - 20, 40, 40);
       }
-      ctx.fillStyle = '#1f1812'; ctx.fillRect(x, y, k.w, k.h);
-      ctx.fillStyle = '#4a3a2c'; ctx.fillRect(x + 1, y + 1, k.w - 2, k.h - 2);
-      ctx.fillStyle = '#5e4a38'; ctx.fillRect(x + 1, y + 1, k.w - 2, 2);
-      ctx.fillStyle = '#2e241b'; ctx.fillRect(x + 1, y + k.h - 3, k.w - 2, 2);
-      for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 2; c++) {
-          const bx = x + 7 + c * 12, by = y + 7 + r * 12;
-          ctx.fillStyle = '#b08d57'; ctx.fillRect(bx, by, 6, 6);
-          ctx.fillStyle = '#2a211a'; ctx.fillRect(bx + 1, by + 1, 4, 4);
-          let led = '#3a2e24';
-          if (k.done) led = '#e6f4ff';
-          else if (r === 0 && c === 0 && ((frame >> 4) & 1)) led = '#ff8a2a';
-          ctx.fillStyle = led; ctx.fillRect(bx + 2, by + 7, 2, 1);
-        }
+      wallShadow(x, y, k.w, k.h);
+      ctx.fillStyle = '#1f1812'; ctx.fillRect(x, y, k.w, k.h);             // rim
+      ctx.fillStyle = '#5a4634'; ctx.fillRect(x + 1, y + 1, k.w - 2, k.h - 2); // bronze face
+      ctx.fillStyle = '#6e5844'; ctx.fillRect(x + 1, y + 1, k.w - 2, 1);       // top bevel
+      ctx.fillStyle = '#3d2f23'; ctx.fillRect(x + 1, y + k.h - 2, k.w - 2, 1); // bottom bevel
+      // Four round buttons in a single centred column, each with a status LED
+      for (let i = 0; i < 4; i++) {
+        const by = y + 3 + i * 4;
+        ctx.fillStyle = '#b08d57'; ctx.fillRect(x + 5, by, 4, 3);
+        ctx.fillStyle = '#2a211a'; ctx.fillRect(x + 6, by + 1, 2, 1);
+        let led = '#3a2e24';
+        if (k.done) led = '#e6f4ff';
+        else if (i === 0 && ((frame >> 4) & 1)) led = '#ff8a2a';
+        ctx.fillStyle = led; ctx.fillRect(x + 10, by + 1, 1, 1);
       }
-      if (k.done) {
-        ctx.fillStyle = 'rgba(220, 240, 255, 0.18)';
-        ctx.fillRect(x - 4, y - 4, k.w + 8, k.h + 8);
+      if (!k.done && k.progress > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#e8761f'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 17, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, k.progress / KEYPAD_HOLD));
+        ctx.stroke();
+        ctx.restore();
       }
     }
   }
@@ -3673,7 +3847,6 @@
     drawCollectibles();
     drawPlayer();
     drawParticles();
-    drawCarried();
     // Foreground beams render AFTER the player so the player passes behind them
     drawBeams();
     drawFloatTexts();
@@ -3749,6 +3922,9 @@
     get level() { return currentLevel; }, loadLevel: (i) => loadLevel(i, { keepScore: true }),
     get loading() { return isLoadingLevel; },
     step: (n) => { for (let i = 0; i < (n || 1); i++) update(); },
+    // Frame a world x at the left edge and hide the player, for screenshots
+    frame: (x) => { debugCam = x; player.y = -400; player.vy = 0; },
+    unframe: () => { debugCam = null; },
   };
   requestAnimationFrame(frameLoop);
   window.addEventListener('blur', () => { if (state === STATE.PLAY) togglePause(); });

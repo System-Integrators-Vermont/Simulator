@@ -49,7 +49,7 @@ test('items the level does not have are rejected', () => {
 
 test('installing more TVs than were picked up is rejected', () => {
   const e = perfect(1, 30);
-  e.pickups.tv = 2;
+  e.pickups.tv = e.installs.tv - 1;
   e.clean = false;
   assert.match(checkLog([e], scoreEntry(e), 10 * MIN), /Bad installs/);
 });

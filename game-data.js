@@ -12,8 +12,9 @@
     wire:        { sprite: 'wireYellow', altSprite: 'wireBlue', points: 25  },
     hammer:      { sprite: 'hammer',     points: 10  },
     cutter:      { sprite: 'cutter',     points: 50  },
-    tv:          { sprite: 'tv',         points: 250 },
-    speaker:     { sprite: 'speaker',    points: 100 },
+    // Boxed on the floor: box size is roughly real carton size at 2 px per inch
+    tv:          { sprite: 'tv',         points: 250, box: { w: 120, h: 76, label: '65"' } },
+    speaker:     { sprite: 'speaker',    points: 100, box: { w: 28,  h: 60, label: '' } },
     // Level 3 (Landscape Lighting)
     wireGrey:    { sprite: 'wireGrey',    points: 25  },
     cutterNight: { sprite: 'cutterNight', points: 50  },
@@ -420,54 +421,58 @@
     "indoorThresholdX": 1280,
     "platforms": [
       { "x": 0,    "y": 464, "w": 2100, "h": 76, "type": "ground" },
-      { "x": 2196, "y": 464, "w": 2004, "h": 76, "type": "ground" },
-      { "x": 4296, "y": 464, "w": 2404, "h": 76, "type": "ground" },
-      { "x": 6796, "y": 464, "w": 2884, "h": 76, "type": "ground" },
+      { "x": 2196, "y": 464, "w": 1364, "h": 76, "type": "ground" },
+      { "x": 3656, "y": 464, "w": 3294, "h": 76, "type": "ground" },
+      { "x": 7046, "y": 464, "w": 2634, "h": 76, "type": "ground" },
       { "x": 1500, "y": 374, "w": 180, "h": 90, "type": "lv2obstacle", "sprite": "Lv2_ConsoleTable" },
       { "x": 3200, "y": 304, "w": 300, "h": 160, "type": "lv2obstacle", "sprite": "Lv2_KitchenIsland" },
-      { "x": 4000, "y": 354, "w": 360, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_Sofa" },
-      { "x": 4400, "y": 320, "w": 144, "h": 144, "type": "lv2obstacle", "sprite": "Lv2_Armchair" },
+      { "x": 3957, "y": 354, "w": 360, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_Sofa" },      // centred on the chimney (x 4137)
+      { "x": 4388, "y": 320, "w": 144, "h": 144, "type": "lv2obstacle", "sprite": "Lv2_Armchair" },  // centred on the window
       { "x": 4720, "y": 294, "w": 140, "h": 170, "type": "lv2obstacle", "sprite": "Lv2_Wingback" },
-      { "x": 5080, "y": 294, "w": 140, "h": 170, "type": "lv2obstacle", "sprite": "Lv2_Wingback" },
-      { "x": 5560, "y": 394, "w": 160, "h": 70, "type": "lv2obstacle", "sprite": "Lv2_Bench" },
-      { "x": 5870, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },
-      { "x": 6300, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },
-      { "x": 7560, "y": 334, "w": 360, "h": 130, "type": "lv2obstacle", "sprite": "Lv2_KingBed" },
-      { "x": 8200, "y": 354, "w": 270, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_QueenBed" },
-      { "x": 8700, "y": 314, "w": 200, "h": 150, "type": "lv2obstacle", "sprite": "Lv2_Treadmill" }
+      { "x": 5143, "y": 294, "w": 140, "h": 170, "type": "lv2obstacle", "sprite": "Lv2_Wingback" },  // each chair centred on its bookcase
+      { "x": 5520, "y": 394, "w": 160, "h": 70, "type": "lv2obstacle", "sprite": "Lv2_Bench" },        // centred on the window (x 5600)
+      { "x": 5924, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },  // rows mirror about
+      { "x": 6354, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },  // the screen (x 6319)
+      { "x": 7526, "y": 334, "w": 360, "h": 130, "type": "lv2obstacle", "sprite": "Lv2_KingBed" }, // centred on the headboard panel
+      { "x": 8101, "y": 354, "w": 270, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_QueenBed" },    // centred on window and sconces (x 8236)
+      { "x": 8560, "y": 314, "w": 200, "h": 150, "type": "lv2obstacle", "sprite": "Lv2_Treadmill" }    // under the mirror and TV
     ],
     "ladders": [],
     "collectiblesInit": [
-      { "x": 1700, "y": 280, "t": "speaker" },
-      { "x": 1920, "y": 280, "t": "tv"      },
-      { "x": 2400, "y": 280, "t": "hammer"  },
-      { "x": 2900, "y": 280, "t": "cutter"  },
-      { "x": 3500, "y": 280, "t": "speaker" },
-      { "x": 4150, "y": 280, "t": "tv"      },
-      { "x": 5500, "y": 280, "t": "speaker" },
-      { "x": 6450, "y": 280, "t": "tv"      },
-      { "x": 7400, "y": 280, "t": "cutter"  },
-      { "x": 7820, "y": 280, "t": "speaker" },
-      { "x": 8240, "y": 280, "t": "hammer"  },
-      { "x": 8780, "y": 280, "t": "tv"      }
+      // Boxed TVs and speakers sit on the floor, staged in mirrored pairs
+      { "x": 1766, "t": "tv" },        // centred under the entry chandelier
+      { "x": 2390, "t": "speaker" },   // pair either side of the front hall window
+      { "x": 2570, "t": "speaker" },
+      { "x": 5470, "t": "speaker" },   // pair either side of the centre hall bench
+      { "x": 5730, "t": "speaker" },
+      { "x": 7410, "t": "tv" },        // primary suite floor, left of the bed
+      // Tools hover a fixed height above whatever surface is below them
+      { "x": 2480, "t": "hammer" },
+      { "x": 2900, "t": "cutter" },
+      { "x": 7706, "t": "cutter" },
+      { "x": 8236, "t": "hammer" }
     ],
     "hazards": [
       { "type": "burstPipe", "x": 3050, "y": 296, "w": 70, "h": 168 },
-      { "type": "burstPipe", "x": 8580, "y": 296, "w": 70, "h": 168 }
+      { "type": "burstPipe", "x": 8960, "y": 296, "w": 70, "h": 168 }
     ],
-    // Picked-up TVs and speakers are carried until you walk past one of these.
+    // Mount points, measured from the room art (about 2 px per inch, floor at y 464).
+    // x, y are the centre. TVs are 65" (113 x 64); in-wall speakers are 18 x 48.
+    // Each pair of speakers mirrors exactly about its screen's centre line.
     "installs": [
-      { "t": "speaker", "x": 2480, "y": 120 },
-      { "t": "tv",      "x": 2880, "y": 180 },
-      { "t": "speaker", "x": 3900, "y": 120 },
-      { "t": "tv",      "x": 4250, "y": 230 },
-      { "t": "speaker", "x": 6050, "y": 120 },
-      { "t": "tv",      "x": 7000, "y": 230 },
-      { "t": "speaker", "x": 8250, "y": 120 },
-      { "t": "tv",      "x": 9350, "y": 230 }
+      // Great Room: TV centred on the chimney, 8" above the mantel (mantel top y 310)
+      { "t": "tv",      "x": 4137, "y": 262, "w": 113, "h": 64, "room": "Great Room" },
+      { "t": "speaker", "x": 3987, "y": 262, "w": 18,  "h": 48, "room": "Great Room" },
+      { "t": "speaker", "x": 4287, "y": 262, "w": 18,  "h": 48, "room": "Great Room" },
+      // Theater: left and right flanking the screen (centre x 6319, y 255)
+      { "t": "speaker", "x": 6074, "y": 255, "w": 18,  "h": 48, "room": "Theater", "finish": "black" },
+      { "t": "speaker", "x": 6564, "y": 255, "w": 18,  "h": 48, "room": "Theater", "finish": "black" },
+      // Home Gym: exactly over the TV painted above the mirror
+      { "t": "tv",      "x": 8660, "y": 152, "w": 106, "h": 64, "room": "Home Gym", "coverArt": true }
     ],
-    "checkpoints": [2720, 4640, 5780, 7280],
-    "secretBadge": { "x": 4790, "y": 150 },
+    // Flags stand just before each doorway; keypads sit just past it
+    "checkpoints": [2650, 4590, 5790, 7230],
+    "secretBadge": { "x": 4786, "y": 150 },
     "bgSections": [
       { "type": "exterior", "bg": "Lv2_Exterior",   "x": 0,    "w": 1280 },
       { "type": "interior", "bg": "Lv2_GrandEntry", "x": 1280, "w": 960  },
@@ -486,8 +491,8 @@
     "beams": [1280, 2240, 2720, 3680, 4640, 5360, 5840, 6800, 7280, 8000, 8480, 9200],
     "pits": [
       { "x": 2100, "w": 96 },
-      { "x": 4200, "w": 96 },
-      { "x": 6700, "w": 96 }
+      { "x": 3560, "w": 96 },
+      { "x": 6950, "w": 96 }
     ],
     "goal": { "x": 9540, "y": 304, "w": 64, "h": 160 },
     "rocks": [],
@@ -930,10 +935,22 @@
     Lv2_GuestBed: 'Guest Room', Lv2_Gym: 'Home Gym', Lv2_Mudroom: 'Mudroom',
   };
 
-  // Keypads go 70 px into each room unless the art there needs something else
-  const KEYPAD_SPOTS = {
-    Lv2_Kitchen: { x: 2810, y: 348 },  // backsplash, clear of the upper cabinets
-    Lv2_Mudroom: { x: 9500 },          // beside the exit door, not on the cubbies
+  // Keypad left edges, measured room by room from the art: just inside each
+  // entry, clear of columns, mirrors and cubbies.
+  const KEYPAD_CENTER_Y = 464 - 96;
+  const KEYPAD_X = {
+    Lv2_GrandEntry: 1350,  // right of the entry column
+    Lv2_HallA:      2300,
+    Lv2_Kitchen:    2770,  // on the backsplash, between counter and upper cabinets
+    Lv2_GreatRoom:  3712,
+    Lv2_Library:    4672,
+    Lv2_HallB:      5420,
+    Lv2_Theater:    6312,  // centred in the aisle, on the screen's axis
+    Lv2_HallC:      6832,
+    Lv2_PrimaryBed: 7312,
+    Lv2_GuestBed:   8032,
+    Lv2_Gym:        9150,  // right of the window; the mirror fills the entry wall
+    Lv2_Mudroom:    9508,  // latch side of the exit door
   };
 
   // Level 4 reuses the Trim Out house. Every room starts dark; programming the
@@ -944,15 +961,19 @@
     lvl.goalText = 'Jump to each keypad to bring the house to life';
     lvl.theme = 'commissioning';
     lvl.collectiblesInit = [];
+    // What you installed in Trim Out is on the walls now
+    lvl.decorInstalls = lvl.installs;
     lvl.installs = [];
-    lvl.secretBadge = { x: 7740, y: 200 }; // above the king bed
+    lvl.secretBadge = { x: 7706, y: 200 }; // above the king bed
+    // Keypads centred 48" off the floor (96 px), on the first clear wall inside
+    // each room's entry. Plate is 14 x 20, about a 4-button keypad at game scale.
     lvl.keypads = lvl.bgSections
       .filter(sec => sec.type === 'interior')
-      .map(sec => ({ x: sec.x + 70, y: 272, w: 32, h: 32, room: sec.bg, ...(KEYPAD_SPOTS[sec.bg] || {}) }));
+      .map(sec => ({ x: KEYPAD_X[sec.bg], y: KEYPAD_CENTER_Y - 10, w: 14, h: 20, room: sec.bg }));
     lvl.hazards = [
       { type: 'roomba', x: 2400, y: 444, w: 56, h: 20, minX: 2250, maxX: 2700, vx: 1.6 },
       { type: 'roomba', x: 2900, y: 444, w: 56, h: 20, minX: 2760, maxX: 3180, vx: -1.8 },
-      { type: 'roomba', x: 7000, y: 444, w: 56, h: 20, minX: 6820, maxX: 7260, vx: 2.0 },
+      { type: 'roomba', x: 7120, y: 444, w: 56, h: 20, minX: 7060, maxX: 7260, vx: 2.0 },
       { type: 'roomba', x: 9300, y: 444, w: 56, h: 20, minX: 9220, maxX: 9500, vx: -1.6 },
     ];
     return lvl;
