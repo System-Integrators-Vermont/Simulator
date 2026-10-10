@@ -19,7 +19,7 @@
   .btn { font-family: inherit; font-weight: 900; letter-spacing: 0.10em; text-transform: uppercase; }
   #name-input { font-family: inherit; font-weight: 700; letter-spacing: 0.06em; text-align: center; text-transform: uppercase; }
   #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  #frame { position: relative; width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16)); background: #0a0e12; box-shadow: 0 0 60px rgba(0,0,0,0.5); overflow: hidden; }
+  #frame { container-type: size; position: relative; width: min(100vw, calc(100vh * 16 / 9)); height: min(100vh, calc(100vw * 9 / 16)); background: #0a0e12; box-shadow: 0 0 60px rgba(0,0,0,0.5); overflow: hidden; }
   #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: auto; }
   #hud { position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; justify-content: space-between; padding: clamp(8px, 1.4vw, 16px) clamp(10px, 1.8vw, 22px); pointer-events: none; z-index: 5; }
   .hud-card { background: var(--hud-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 4px; font-size: clamp(11px, 1.4vw, 15px); letter-spacing: 0.04em; line-height: 1.2; }
@@ -50,14 +50,27 @@
   #relaxed-row { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: clamp(11px, 1.4vw, 14px); letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; pointer-events: auto; }
   #relaxed-row input { accent-color: var(--orange); width: 16px; height: 16px; }
   #relaxed-row span { opacity: 0.55; text-transform: none; letter-spacing: 0.02em; }
-  @media (max-height: 500px) { #relaxed-row { margin-top: 6px; } #relaxed-row span { display: none; } }
+  @container (max-height: 500px) { #relaxed-row { margin-top: 6px; } }
+  @container (max-height: 400px) { #relaxed-row span { display: none; } }
   #rotate-hint { display: none; }
   @media (orientation: portrait) and (max-width: 820px) {
     body.touch #rotate-hint { display: block; position: fixed; left: 16px; right: 16px; bottom: 24px; z-index: 20; text-align: center; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); }
   }
   #end-overlay, #title-overlay { justify-content: safe center; overflow-y: auto; }
-  /* Phones held sideways: tighten the name / character screen so Play stays on screen */
-  @media (max-height: 500px) {
+  /* Short game frames (small windows, phones sideways): tighten the name and
+     character screen so Play always stays on screen. Sized off the game frame,
+     not the window, since the frame is often shorter than the window. */
+  @container (max-height: 640px) {
+    #title-overlay h1 { font-size: 24px; margin: 0 0 4px; }
+    #title-overlay h1[style] { margin-top: 12px !important; }
+    #picker-tiles { margin: 8px 0 0; }
+    #picker-tiles .picker-tile { padding: 8px 12px; }
+    #picker-tiles .picker-tile img { width: 72px; }
+    #title-overlay .title-start-btn { margin-top: 10px; }
+    #title-overlay .title-start-btn img { width: 160px; }
+    #title-overlay .keys { margin-top: 8px; font-size: 11px; }
+  }
+  @container (max-height: 500px) {
     #title-overlay { padding: 10px; }
     #title-overlay h1 { font-size: 18px; margin: 0 0 4px; }
     #title-overlay h1[style] { margin-top: 8px !important; }
@@ -68,8 +81,9 @@
     #picker-tiles .picker-tile img { width: 54px; }
     #title-overlay .title-start-btn { margin-top: 8px; }
     #title-overlay .title-start-btn img { width: 130px; }
-    #title-overlay .keys { display: none; }
+    #title-overlay .keys { margin-top: 6px; gap: 10px; font-size: 10px; }
   }
+  @container (max-height: 400px) { #title-overlay .keys { display: none; } }
   #end-stats { display: grid; grid-template-columns: repeat(2, auto); gap: 4px 22px; margin: 12px auto 0; font-size: clamp(11px, 1.4vw, 14px); text-align: left; }
   #end-stats .stat-n { color: #f7e08a; font-variant-numeric: tabular-nums; margin-left: 8px; }
   .end-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -2505,6 +2519,38 @@
       ctx.drawImage(img, Math.round(x), py);
     }
   }
+  // Nothing floats: scaffold boards stand on steel legs, garden-wall slabs on a pier
+  function drawSupports() {
+    const theme = LEVELS[currentLevel].theme;
+    if (theme !== 'rough-in' && theme !== 'night') return;
+    for (const pl of platforms) {
+      const x = Math.round(pl.x - camX);
+      if (x + pl.w < -2 || x > VIRT_W + 2) continue;
+      const top = pl.y + pl.h, h = GROUND_Y - top;
+      if (h <= 0) continue;
+      if (pl.type === 'plat' && theme === 'rough-in') {
+        const l = x + 10, r = x + pl.w - 14;
+        ctx.strokeStyle = 'rgba(120, 126, 134, 0.75)'; ctx.lineWidth = 2;   // cross brace
+        ctx.beginPath(); ctx.moveTo(l + 2, top + 6); ctx.lineTo(r + 2, GROUND_Y - 6);
+        ctx.moveTo(r + 2, top + 6); ctx.lineTo(l + 2, GROUND_Y - 6); ctx.stroke();
+        for (const lx of [l, r]) {
+          ctx.fillStyle = '#5d636b'; ctx.fillRect(lx, top, 4, h);
+          ctx.fillStyle = '#9aa1aa'; ctx.fillRect(lx, top, 1, h);
+          ctx.fillStyle = '#3a3e44'; ctx.fillRect(lx - 3, GROUND_Y - 3, 10, 3); // base plate
+        }
+      } else if (pl.type === 'plat-black') {
+        const pw = Math.round(pl.w * 0.36), px = Math.round(x + (pl.w - pw) / 2);
+        ctx.fillStyle = '#1b1f25'; ctx.fillRect(px, top, pw, h);
+        ctx.fillStyle = '#262b33';
+        for (let yy = top + 4; yy < GROUND_Y; yy += 14) {
+          const off = ((yy - top) / 14) % 2 ? 0 : pw / 2;
+          ctx.fillRect(px, yy, pw, 1);
+          ctx.fillRect(Math.round(px + off), yy, 1, 14);
+        }
+        ctx.fillStyle = 'rgba(255, 220, 160, 0.05)'; ctx.fillRect(px, top, 2, h); // moonlit edge
+      }
+    }
+  }
   function drawPlatforms() {
     const lvl = LEVELS[currentLevel];
     const indoorThresholdX = (lvl.indoorThresholdX != null) ? lvl.indoorThresholdX : 450 * S;
@@ -2549,13 +2595,12 @@
       }
       // Black elevated platform (Level 3)
       if (pl.type === 'plat-black') {
-        ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(x, pl.y, pl.w, pl.h);
-        // Subtle top edge highlight (slate)
-        ctx.fillStyle = '#2a2a2e';
-        ctx.fillRect(x, pl.y, pl.w, 1);
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(x, pl.y + pl.h - 1, pl.w, 1);
+        // Granite cap stone on a garden wall pier (pier drawn in drawSupports)
+        ctx.fillStyle = '#2c3138'; ctx.fillRect(x, pl.y, pl.w, pl.h);
+        ctx.fillStyle = '#4a515b'; ctx.fillRect(x, pl.y, pl.w, 2);
+        ctx.fillStyle = '#15181d'; ctx.fillRect(x, pl.y + pl.h - 2, pl.w, 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        for (let i = 6; i < pl.w; i += 23) ctx.fillRect(x + i, pl.y + 5 + (i % 3) * 4, 3, 1);
         continue;
       }
       // Night ground (Level 3) — dark grass / soil
@@ -2818,25 +2863,28 @@
           ctx.fillRect(x + h.w + 2, h.y + 8, 2, 1);
         }
       } else if (h.type === 'spool') {
-        // Runaway wire spool: wobbles as it rolls and pays out cable behind it
-        const img = itemImg.wireYellow;
+        // Runaway cable reel: wooden flanges and hub that visibly roll, paying
+        // out dark cable behind. Deliberately unlike the small wire pickups.
+        const r = h.h / 2, cx = Math.round(x + r), cy = h.y + r;
+        const ang = h.x / r;               // rolls without slipping
         const dir = h.vx > 0 ? 1 : -1;
-        ctx.strokeStyle = '#d9a520';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        const tailX = x + h.w / 2 - dir * 10;
-        ctx.moveTo(tailX, GROUND_Y - 6);
-        for (let i = 1; i <= 6; i++) {
-          ctx.lineTo(tailX - dir * i * 12, GROUND_Y - 3 - ((i + (h.t >> 2)) % 2) * 3);
-        }
+        ctx.strokeStyle = '#2b2d31'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(cx, GROUND_Y - 2);
+        for (let i = 1; i <= 7; i++) ctx.lineTo(cx - dir * i * 12, GROUND_Y - 2 - ((i + (h.t >> 2)) % 2));
         ctx.stroke();
-        if (img && img.complete) {
-          ctx.save();
-          ctx.translate(Math.round(x + h.w / 2), h.y + h.h);
-          ctx.rotate(Math.sin(h.t / 5) * 0.12);
-          ctx.drawImage(img, -h.w / 2, -h.h, h.w, h.h);
-          ctx.restore();
-        }
+        ctx.fillStyle = 'rgba(20, 14, 8, 0.3)'; ctx.fillRect(cx - r + 4, GROUND_Y - 2, 2 * r - 8, 3);
+        ctx.fillStyle = '#6b4724'; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();       // flange rim
+        ctx.fillStyle = '#a0703f'; ctx.beginPath(); ctx.arc(cx, cy, r - 3, 0, Math.PI * 2); ctx.fill();   // flange face
+        ctx.fillStyle = '#2b2d31'; ctx.beginPath(); ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2); ctx.fill(); // cable wrap
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)'; ctx.lineWidth = 1;
+        for (let k = 0.3; k < 0.62; k += 0.08) { ctx.beginPath(); ctx.arc(cx, cy, r * k, 0, Math.PI * 2); ctx.stroke(); }
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+        ctx.fillStyle = '#8a6036';
+        for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.fillRect(-2, r * 0.62, 4, r * 0.32); } // flange spokes
+        ctx.fillStyle = '#c8a06a'; ctx.beginPath(); ctx.arc(0, 0, r * 0.22, 0, Math.PI * 2); ctx.fill();     // hub
+        ctx.fillStyle = '#3e2a16'; ctx.beginPath(); ctx.arc(0, 0, r * 0.09, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8761f'; ctx.fillRect(-2, -r * 0.2, 4, 3);                                          // SI stencil mark
+        ctx.restore();
       } else if (h.type === 'roomba') {
         // Robot vacuum on patrol
         const cx = Math.round(x + h.w / 2), by = h.y + h.h;
@@ -2888,7 +2936,7 @@
       // plus a small slice of the falling water column above it.
       return { x: h.x + 4, y: h.y + h.h - 18, w: h.w - 8, h: 18 };
     } else if (h.type === 'spool') {
-      return { x: h.x + 8, y: h.y + 10, w: h.w - 16, h: h.h - 10 };
+      return { x: h.x + 10, y: h.y + 10, w: h.w - 20, h: h.h - 10 };
     } else if (h.type === 'roomba') {
       return { x: h.x + 6, y: h.y + 4, w: h.w - 12, h: h.h - 4 };
     }
@@ -3837,6 +3885,7 @@
     // are dirt-themed gaps. Level 2 indoors and Level 3 night don't fit a dirt pit.
     if (theme === 'rough-in') drawPits();
     drawInstalls();
+    drawSupports();
     drawPlatforms(); drawLadders();
     drawDoorGoal();
     drawWarpDoors();
@@ -3918,7 +3967,7 @@
   if (DEBUG) window.__pl = {
     player, get state() { return state; }, get lives() { return lives; }, get score() { return score; },
     get runStats() { return runStats; }, get installs() { return installs; }, get keypads() { return keypads; },
-    get carrying() { return carrying; }, get hazards() { return hazards; }, get respawnX() { return respawnX; },
+    get carrying() { return carrying; }, get collectibles() { return collectibles; }, get hazards() { return hazards; }, get respawnX() { return respawnX; },
     get level() { return currentLevel; }, loadLevel: (i) => loadLevel(i, { keepScore: true }),
     get loading() { return isLoadingLevel; },
     step: (n) => { for (let i = 0; i < (n || 1); i++) update(); },

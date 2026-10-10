@@ -58,6 +58,39 @@ Both games make dying quick and readable: a short pause so you see what hit you,
 - **We had:** an instant teleport back to the start of the level.
 - **Added (with checkpoints from the previous round):** a brief hit-stop and fade, then respawn at the last flag.
 
+## 9. Composition and real-world scale (Wes Anderson, AV install practice)
+
+Kogonada's "Wes Anderson // Centered" and David Bordwell's writing on Anderson's planimetric staging describe the look: the camera square to a back wall, the subject on the centre line, everything else mirrored around it, props on a few flat layers, generous empty wall. A side-scroller is already square to the wall, so the work is in placement.
+
+Real installs give the numbers, at the game's scale of about 2 px per inch (checked against the art: the mudroom door is about 80 in, the kitchen counter about 36 in):
+
+| Device | Real practice | In the game |
+| --- | --- | --- |
+| Lighting keypad | Centreline 48 in off the floor, beside the door on the latch side (builder convention; ADA allows 15 to 48 in) | 14 x 20 plate centred 96 px above the floor, just inside each room's entry |
+| TV over a fireplace | 4 to 12 in above the mantel (Houzz, KEF) | 65 in TV (113 x 64) centred on the chimney, 8 in above the mantel |
+| Left and right speakers | Mirrored exactly about the screen centre, at screen height (Sonance) | In-wall speakers 18 x 48, mirrored about each screen; black grilles in the theater |
+| Pickups | Rest on a surface, or hover with a contact shadow (pixel art grounding practice) | Cartons on the floor, tools a fixed height over the surface below with a shadow |
+| Carried items | A large item carried overhead reads as floating (Super Mario Bros. 2 re-tuned carry height per character) | Carried items go to a HUD slot |
+
+**What we changed after playing it:**
+- Measured every room and centred the furniture on its axis: sofa on the chimney, armchair on the window, wingbacks on their bookcases, theater rows on the screen, beds on the headboard and sconces, treadmill under the mirror.
+- Keypads at 48 in. You stand at one for half a second to program it, rather than jumping at a plate near the ceiling.
+- TV and speaker mounts at real heights. Empty mounts show as blue painter's tape at the exact footprint. The gym TV is mounted exactly over the TV painted in the art.
+- Nothing floats. Scaffold boards stand on braced legs, garden-wall slabs sit on stone piers, cartons rest on the floor.
+- The runaway spool became a large wooden cable reel, so the hazard no longer looks like the wire pickups.
+
+Additional sources:
+- [Wes Anderson // Centered, via Slashfilm](https://www.slashfilm.com/wes-anderson-symmetry-video)
+- [David Bordwell on The Grand Budapest Hotel](https://www.davidbordwell.net/blog/2014/03/26/the-grand-budapest-hotel-wes-anderson-takes-the-43-challenge/)
+- [Adam Stockhausen interview, Backstage](https://www.backstage.com/magazine/article/wes-andersons-production-designer-adam-stockhausen-interview-74172/)
+- [ADA operable parts, US Access Board](https://www.access-board.gov/ada/guides/chapter-3-operable-parts/)
+- [Light switch height, Bob Vila](https://bobvila.com/articles/light-switch-height)
+- [Ideal TV height, KEF](https://us.kef.com/blogs/news/calculate-the-ideal-tv-height)
+- [How high should your TV be, Houzz](https://www.houzz.com/magazine/how-high-should-your-tv-be-stsetivw-vs~47203714)
+- [Sonance VP67 LCR manual](https://www.manualsdir.com/manuals/155526/sonance-visual-performance-vp67-lcr.html)
+- [Choosing a pixel art resolution, Pixel Parmesan](https://pixelparmesan.com/choosing-the-right-resolution-for-your-pixel-art/)
+- [Super Mario Bros. 2 prototype, The Cutting Room Floor](https://new.tcrf.net/Proto:Super_Mario_Bros._2_(NES))
+
 ## Sources
 
 - [Celeste & Forgiveness](https://maddymakesgames.com/articles/celeste_and_forgiveness/), Maddy Thorson

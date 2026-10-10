@@ -394,9 +394,9 @@
     ],
     "secretBadge": { "x": -520, "y": 110 },
     "hazards": [
-      { "type": "spool", "x": 3200, "y": 404, "w": 48, "h": 60, "minX": 2760, "maxX": 3960, "vx": 2.4 },
-      { "type": "spool", "x": 4700, "y": 404, "w": 48, "h": 60, "minX": 4400, "maxX": 5200, "vx": -2.8 },
-      { "type": "spool", "x": 6600, "y": 404, "w": 48, "h": 60, "minX": 6100, "maxX": 7300, "vx": 3.2 }
+      { "type": "spool", "x": 3200, "y": 404, "w": 60, "h": 60, "minX": 2760, "maxX": 3960, "vx": 2.4 },
+      { "type": "spool", "x": 4700, "y": 404, "w": 60, "h": 60, "minX": 4400, "maxX": 5200, "vx": -2.8 },
+      { "type": "spool", "x": 6600, "y": 404, "w": 60, "h": 60, "minX": 6100, "maxX": 7300, "vx": 3.2 }
     ],
     "checkpoints": [2700, 4200, 5500],
     "goal": {
@@ -914,7 +914,7 @@
         "scale": 0.95
       }
     ],
-    "checkpoints": [2000, 4000, 6000],
+    "checkpoints": [2250, 4000, 6000], // on open ground, clear of the garden walls
     "secretBadge": { "x": 3120, "y": 150 },
     "goal": {
       "x": 7558,
