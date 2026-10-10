@@ -130,6 +130,7 @@
   #leaderboard td.name, #leaderboard-modal td.name { text-align: left; letter-spacing: 0.06em; text-transform: uppercase; }
   #leaderboard td.score, #leaderboard-modal td.score { text-align: right; font-variant-numeric: tabular-nums; color: #f7e08a; }
   #leaderboard tr.you td, #leaderboard-modal tr.you td { color: #fff; background: rgba(232, 118, 31, 0.22); }
+  .lb-you { margin-top: 8px !important; font-size: clamp(11px, 1.3vw, 13px) !important; opacity: 0.7 !important; }
 
   /* Loading overlay — visible immediately, hidden once images are ready */
   #loading-overlay {
@@ -301,6 +302,7 @@
   </div>
 </div>
 
+<script src="game-data.js"></script>
 <script>
 (() => {
   'use strict';
@@ -328,7 +330,7 @@
   const CLIMB_SPEED = 1.6 * S;
 
   // Per-level timer
-  const LEVEL_TIME = 90; // seconds
+  const LEVEL_TIME = window.SIS_DATA.LEVEL_TIME; // seconds
   let timeRemaining = LEVEL_TIME;
 
   // ---------- Embedded character parts (base64) ----------
@@ -1043,957 +1045,7 @@
   // for readability, then runtime-scaled by S below.
   const GROUND_Y = 232 * S;
 
-  // Type → render mode + point value. Used across all levels.
-  const TYPES = {
-    wire:        { sprite: 'wireYellow', altSprite: 'wireBlue', points: 25  },
-    hammer:      { sprite: 'hammer',     points: 10  },
-    cutter:      { sprite: 'cutter',     points: 50  },
-    tv:          { sprite: 'tv',         points: 250 },
-    speaker:     { sprite: 'speaker',    points: 100 },
-    // Level 3 (Landscape Lighting)
-    wireGrey:    { sprite: 'wireGrey',    points: 25  },
-    cutterNight: { sprite: 'cutterNight', points: 50  },
-    light:       { sprite: 'light',       points: 150 },
-    // Phone — picking it up "lights up" the tree at the player's tree.
-    // Per-collectible `treeId` field tells drawTrees which tree to swap to lit.
-    phone:       { sprite: 'phone',       points: 100 },
-    // Hidden SI badge, one per level, off the main route (Celeste strawberries)
-    badge:       { drawProc: 'badge',     points: 500 },
-  };
-
-  const KEYPAD_POINTS = 200;
-  // Which run-summary line each pickup counts toward
-  const STAT_FOR_TYPE = {
-    wire: 'wire', wireGrey: 'wire', hammer: 'tools', cutter: 'tools', cutterNight: 'tools',
-    light: 'lights', phone: 'trees', badge: 'badges',
-  };
-
-  const LEVELS = [
-  {
-    "name": "Rough In",
-    "goalText": "Pull wire through the framing and reach the front door",
-    "width": 8500,
-    "spawnX": 800,
-    "minX": -1400,
-    "theme": "rough-in",
-    "showVan": true,
-    "showMansion": true,
-    "platforms": [
-      {
-        "x": -1400,
-        "y": 464,
-        "w": 1400,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": -720,
-        "y": 240,
-        "w": 400,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 0,
-        "y": 464,
-        "w": 1440,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": 1540,
-        "y": 464,
-        "w": 1020,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": 2640,
-        "y": 464,
-        "w": 1440,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": 4160,
-        "y": 464,
-        "w": 1120,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": 5360,
-        "y": 464,
-        "w": 3140,
-        "h": 76,
-        "type": "ground"
-      },
-      {
-        "x": 760,
-        "y": 376,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 1020,
-        "y": 312,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 1280,
-        "y": 376,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 1760,
-        "y": 356,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 2120,
-        "y": 284,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 2480,
-        "y": 356,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 2960,
-        "y": 336,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 3240,
-        "y": 260,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 3560,
-        "y": 336,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 3900,
-        "y": 400,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 4400,
-        "y": 360,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 4680,
-        "y": 300,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 4960,
-        "y": 360,
-        "w": 160,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 5560,
-        "y": 356,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 5880,
-        "y": 284,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 6200,
-        "y": 356,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      },
-      {
-        "x": 6560,
-        "y": 400,
-        "w": 192,
-        "h": 24,
-        "type": "plat"
-      }
-    ],
-    "ladders": [
-      {
-        "x": -440,
-        "topY": 240,
-        "botY": 464,
-        "w": 56
-      },
-      {
-        "x": 1048,
-        "topY": 312,
-        "botY": 464,
-        "w": 56
-      },
-      {
-        "x": 2148,
-        "topY": 284,
-        "botY": 464,
-        "w": 56
-      },
-      {
-        "x": 3268,
-        "topY": 260,
-        "botY": 464,
-        "w": 56
-      },
-      {
-        "x": 5908,
-        "topY": 284,
-        "botY": 464,
-        "w": 56
-      }
-    ],
-    "warpDoors": [
-      {
-        "x": -600,
-        "y": 120,
-        "w": 80,
-        "h": 120,
-        "target": 2,
-        "label": "3"
-      },
-      {
-        "x": -1000,
-        "y": 344,
-        "w": 80,
-        "h": 120,
-        "target": 1,
-        "label": "2"
-      }
-    ],
-    "collectiblesInit": [
-      {
-        "x": 640,
-        "y": 400,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 760,
-        "y": 400,
-        "t": "hammer"
-      },
-      {
-        "x": 900,
-        "y": 316,
-        "t": "wire",
-        "v": 1
-      },
-      {
-        "x": 1080,
-        "y": 252,
-        "t": "cutter"
-      },
-      {
-        "x": 1320,
-        "y": 316,
-        "t": "hammer"
-      },
-      {
-        "x": 1600,
-        "y": 400,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 1600,
-        "y": 320,
-        "t": "wire",
-        "v": 1
-      },
-      {
-        "x": 1600,
-        "y": 240,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 1810,
-        "y": 296,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 2170,
-        "y": 224,
-        "t": "cutter"
-      },
-      {
-        "x": 2530,
-        "y": 296,
-        "t": "wire",
-        "v": 1
-      },
-      {
-        "x": 3000,
-        "y": 276,
-        "t": "hammer"
-      },
-      {
-        "x": 3290,
-        "y": 200,
-        "t": "cutter"
-      },
-      {
-        "x": 3600,
-        "y": 276,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 3970,
-        "y": 340,
-        "t": "hammer"
-      },
-      {
-        "x": 4450,
-        "y": 300,
-        "t": "wire",
-        "v": 1
-      },
-      {
-        "x": 4730,
-        "y": 240,
-        "t": "cutter"
-      },
-      {
-        "x": 5020,
-        "y": 300,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 5620,
-        "y": 296,
-        "t": "hammer"
-      },
-      {
-        "x": 5930,
-        "y": 224,
-        "t": "cutter"
-      },
-      {
-        "x": 6250,
-        "y": 296,
-        "t": "wire",
-        "v": 1
-      },
-      {
-        "x": 6600,
-        "y": 340,
-        "t": "wire",
-        "v": 0
-      },
-      {
-        "x": 6900,
-        "y": 400,
-        "t": "hammer"
-      }
-    ],
-    "secretBadge": { "x": -520, "y": 110 },
-    "hazards": [
-      { "type": "spool", "x": 3200, "y": 404, "w": 48, "h": 60, "minX": 2760, "maxX": 3960, "vx": 2.4 },
-      { "type": "spool", "x": 4700, "y": 404, "w": 48, "h": 60, "minX": 4400, "maxX": 5200, "vx": -2.8 },
-      { "type": "spool", "x": 6600, "y": 404, "w": 48, "h": 60, "minX": 6100, "maxX": 7300, "vx": 3.2 }
-    ],
-    "checkpoints": [2700, 4200, 5500],
-    "goal": {
-      "x": 7602,
-      "y": 336,
-      "w": 96,
-      "h": 128
-    },
-    "bgSections": [],
-    "beams": [],
-    "rocks": [],
-    "trees": []
-  },
-  {
-    "name": "Trim Out",
-    "goalText": "Carry each TV and speaker to its mount",
-    "width": 9680,
-    "spawnX": 200,
-    "theme": "trim-out",
-    "showVan": true,
-    "showMansion": false,
-    "indoorThresholdX": 1280,
-    "platforms": [
-      { "x": 0,    "y": 464, "w": 2100, "h": 76, "type": "ground" },
-      { "x": 2196, "y": 464, "w": 2004, "h": 76, "type": "ground" },
-      { "x": 4296, "y": 464, "w": 2404, "h": 76, "type": "ground" },
-      { "x": 6796, "y": 464, "w": 2884, "h": 76, "type": "ground" },
-      { "x": 1500, "y": 374, "w": 180, "h": 90, "type": "lv2obstacle", "sprite": "Lv2_ConsoleTable" },
-      { "x": 3200, "y": 304, "w": 300, "h": 160, "type": "lv2obstacle", "sprite": "Lv2_KitchenIsland" },
-      { "x": 4000, "y": 354, "w": 360, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_Sofa" },
-      { "x": 4400, "y": 320, "w": 144, "h": 144, "type": "lv2obstacle", "sprite": "Lv2_Armchair" },
-      { "x": 4720, "y": 294, "w": 140, "h": 170, "type": "lv2obstacle", "sprite": "Lv2_Wingback" },
-      { "x": 5080, "y": 294, "w": 140, "h": 170, "type": "lv2obstacle", "sprite": "Lv2_Wingback" },
-      { "x": 5560, "y": 394, "w": 160, "h": 70, "type": "lv2obstacle", "sprite": "Lv2_Bench" },
-      { "x": 5870, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },
-      { "x": 6300, "y": 284, "w": 360, "h": 180, "type": "lv2obstacle", "sprite": "Lv2_TheaterRow" },
-      { "x": 7560, "y": 334, "w": 360, "h": 130, "type": "lv2obstacle", "sprite": "Lv2_KingBed" },
-      { "x": 8200, "y": 354, "w": 270, "h": 110, "type": "lv2obstacle", "sprite": "Lv2_QueenBed" },
-      { "x": 8700, "y": 314, "w": 200, "h": 150, "type": "lv2obstacle", "sprite": "Lv2_Treadmill" }
-    ],
-    "ladders": [],
-    "collectiblesInit": [
-      { "x": 1700, "y": 280, "t": "speaker" },
-      { "x": 1920, "y": 280, "t": "tv"      },
-      { "x": 2400, "y": 280, "t": "hammer"  },
-      { "x": 2900, "y": 280, "t": "cutter"  },
-      { "x": 3500, "y": 280, "t": "speaker" },
-      { "x": 4150, "y": 280, "t": "tv"      },
-      { "x": 5500, "y": 280, "t": "speaker" },
-      { "x": 6450, "y": 280, "t": "tv"      },
-      { "x": 7400, "y": 280, "t": "cutter"  },
-      { "x": 7820, "y": 280, "t": "speaker" },
-      { "x": 8240, "y": 280, "t": "hammer"  },
-      { "x": 8780, "y": 280, "t": "tv"      }
-    ],
-    "hazards": [
-      { "type": "burstPipe", "x": 3050, "y": 296, "w": 70, "h": 168 },
-      { "type": "burstPipe", "x": 8580, "y": 296, "w": 70, "h": 168 }
-    ],
-    // Picked-up TVs and speakers are carried until you walk past one of these.
-    "installs": [
-      { "t": "speaker", "x": 2480, "y": 120 },
-      { "t": "tv",      "x": 2880, "y": 180 },
-      { "t": "speaker", "x": 3900, "y": 120 },
-      { "t": "tv",      "x": 4250, "y": 230 },
-      { "t": "speaker", "x": 6050, "y": 120 },
-      { "t": "tv",      "x": 7000, "y": 230 },
-      { "t": "speaker", "x": 8250, "y": 120 },
-      { "t": "tv",      "x": 9350, "y": 230 }
-    ],
-    "checkpoints": [2720, 4640, 5780, 7280],
-    "secretBadge": { "x": 4790, "y": 150 },
-    "bgSections": [
-      { "type": "exterior", "bg": "Lv2_Exterior",   "x": 0,    "w": 1280 },
-      { "type": "interior", "bg": "Lv2_GrandEntry", "x": 1280, "w": 960  },
-      { "type": "interior", "bg": "Lv2_HallA",      "x": 2240, "w": 480  },
-      { "type": "interior", "bg": "Lv2_Kitchen",    "x": 2720, "w": 960  },
-      { "type": "interior", "bg": "Lv2_GreatRoom",  "x": 3680, "w": 960  },
-      { "type": "interior", "bg": "Lv2_Library",    "x": 4640, "w": 720  },
-      { "type": "interior", "bg": "Lv2_HallB",      "x": 5360, "w": 480  },
-      { "type": "interior", "bg": "Lv2_Theater",    "x": 5840, "w": 960  },
-      { "type": "interior", "bg": "Lv2_HallC",      "x": 6800, "w": 480  },
-      { "type": "interior", "bg": "Lv2_PrimaryBed", "x": 7280, "w": 720  },
-      { "type": "interior", "bg": "Lv2_GuestBed",   "x": 8000, "w": 480  },
-      { "type": "interior", "bg": "Lv2_Gym",        "x": 8480, "w": 720  },
-      { "type": "interior", "bg": "Lv2_Mudroom",    "x": 9200, "w": 480  }
-    ],
-    "beams": [1280, 2240, 2720, 3680, 4640, 5360, 5840, 6800, 7280, 8000, 8480, 9200],
-    "pits": [
-      { "x": 2100, "w": 96 },
-      { "x": 4200, "w": 96 },
-      { "x": 6700, "w": 96 }
-    ],
-    "goal": { "x": 9540, "y": 304, "w": 64, "h": 160 },
-    "rocks": [],
-    "trees": [],
-    "warpDoors": []
-  },
-  {
-    "name": "Landscape Lighting",
-    "goalText": "Set the fixtures and grab the phones to light the trees",
-    "width": 8000,
-    "spawnX": 200,
-    "theme": "night",
-    "showVan": false,
-    "showMansion": true,
-    "platforms": [
-      {
-        "x": 0,
-        "y": 464,
-        "w": 8000,
-        "h": 76,
-        "type": "ground-night"
-      },
-      {
-        "x": 960,
-        "y": 360,
-        "w": 220,
-        "h": 24,
-        "type": "plat-black"
-      },
-      {
-        "x": 1900,
-        "y": 316,
-        "w": 220,
-        "h": 24,
-        "type": "plat-black"
-      },
-      {
-        "x": 3000,
-        "y": 290,
-        "w": 240,
-        "h": 24,
-        "type": "plat-black"
-      },
-      {
-        "x": 4100,
-        "y": 350,
-        "w": 220,
-        "h": 24,
-        "type": "plat-black"
-      },
-      {
-        "x": 5200,
-        "y": 300,
-        "w": 240,
-        "h": 24,
-        "type": "plat-black"
-      },
-      {
-        "x": 6300,
-        "y": 330,
-        "w": 220,
-        "h": 24,
-        "type": "plat-black"
-      }
-    ],
-    "ladders": [],
-    "collectiblesInit": [
-      {
-        "x": 420,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 500,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 580,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 820,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 910,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 1000,
-        "y": 334,
-        "t": "light"
-      },
-      {
-        "x": 1070,
-        "y": 334,
-        "t": "light"
-      },
-      {
-        "x": 1140,
-        "y": 334,
-        "t": "light"
-      },
-      {
-        "x": 1660,
-        "y": 420,
-        "t": "cutterNight"
-      },
-      {
-        "x": 1740,
-        "y": 420,
-        "t": "cutterNight"
-      },
-      {
-        "x": 2600,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 2690,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 2780,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 3050,
-        "y": 264,
-        "t": "light"
-      },
-      {
-        "x": 3120,
-        "y": 264,
-        "t": "light"
-      },
-      {
-        "x": 3190,
-        "y": 264,
-        "t": "light"
-      },
-      {
-        "x": 3640,
-        "y": 400,
-        "t": "light"
-      },
-      {
-        "x": 3640,
-        "y": 320,
-        "t": "light"
-      },
-      {
-        "x": 3640,
-        "y": 240,
-        "t": "light"
-      },
-      {
-        "x": 4140,
-        "y": 324,
-        "t": "light"
-      },
-      {
-        "x": 4210,
-        "y": 324,
-        "t": "light"
-      },
-      {
-        "x": 4280,
-        "y": 324,
-        "t": "light"
-      },
-      {
-        "x": 4760,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 4850,
-        "y": 420,
-        "t": "wireGrey"
-      },
-      {
-        "x": 5800,
-        "y": 420,
-        "t": "cutterNight"
-      },
-      {
-        "x": 5900,
-        "y": 420,
-        "t": "cutterNight"
-      },
-      {
-        "x": 7000,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 7100,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 7200,
-        "y": 420,
-        "t": "light"
-      },
-      {
-        "x": 400,
-        "y": 424,
-        "t": "phone",
-        "treeId": 0
-      },
-      {
-        "x": 760,
-        "y": 424,
-        "t": "phone",
-        "treeId": 1
-      },
-      {
-        "x": 1210,
-        "y": 424,
-        "t": "phone",
-        "treeId": 2
-      },
-      {
-        "x": 1680,
-        "y": 424,
-        "t": "phone",
-        "treeId": 3
-      },
-      {
-        "x": 2160,
-        "y": 424,
-        "t": "phone",
-        "treeId": 4
-      },
-      {
-        "x": 2560,
-        "y": 424,
-        "t": "phone",
-        "treeId": 5
-      },
-      {
-        "x": 3240,
-        "y": 424,
-        "t": "phone",
-        "treeId": 6
-      },
-      {
-        "x": 3800,
-        "y": 424,
-        "t": "phone",
-        "treeId": 7
-      },
-      {
-        "x": 4350,
-        "y": 424,
-        "t": "phone",
-        "treeId": 8
-      },
-      {
-        "x": 4800,
-        "y": 424,
-        "t": "phone",
-        "treeId": 9
-      },
-      {
-        "x": 5470,
-        "y": 424,
-        "t": "phone",
-        "treeId": 10
-      },
-      {
-        "x": 5900,
-        "y": 424,
-        "t": "phone",
-        "treeId": 11
-      },
-      {
-        "x": 6550,
-        "y": 424,
-        "t": "phone",
-        "treeId": 12
-      },
-      {
-        "x": 7000,
-        "y": 424,
-        "t": "phone",
-        "treeId": 13
-      }
-    ],
-    "hazards": [],
-    "rocks": [
-      {
-        "x": 640,
-        "w": 100,
-        "h": 64
-      },
-      {
-        "x": 1360,
-        "w": 120,
-        "h": 72
-      },
-      {
-        "x": 2360,
-        "w": 100,
-        "h": 64
-      },
-      {
-        "x": 3400,
-        "w": 130,
-        "h": 76
-      },
-      {
-        "x": 4500,
-        "w": 100,
-        "h": 64
-      },
-      {
-        "x": 5560,
-        "w": 110,
-        "h": 68
-      },
-      {
-        "x": 6760,
-        "w": 100,
-        "h": 64
-      }
-    ],
-    "trees": [
-      {
-        "id": 0,
-        "type": "oak",
-        "x": 400,
-        "scale": 1.05
-      },
-      {
-        "id": 1,
-        "type": "pine",
-        "x": 720,
-        "scale": 0.95
-      },
-      {
-        "id": 2,
-        "type": "maple",
-        "x": 1160,
-        "scale": 1.0
-      },
-      {
-        "id": 3,
-        "type": "oak",
-        "x": 1680,
-        "scale": 0.9
-      },
-      {
-        "id": 4,
-        "type": "pine",
-        "x": 2160,
-        "scale": 1.0
-      },
-      {
-        "id": 5,
-        "type": "maple",
-        "x": 2560,
-        "scale": 1.05
-      },
-      {
-        "id": 6,
-        "type": "pine",
-        "x": 3240,
-        "scale": 0.95
-      },
-      {
-        "id": 7,
-        "type": "oak",
-        "x": 3800,
-        "scale": 1.0
-      },
-      {
-        "id": 8,
-        "type": "maple",
-        "x": 4300,
-        "scale": 0.95
-      },
-      {
-        "id": 9,
-        "type": "pine",
-        "x": 4800,
-        "scale": 1.05
-      },
-      {
-        "id": 10,
-        "type": "oak",
-        "x": 5400,
-        "scale": 0.95
-      },
-      {
-        "id": 11,
-        "type": "maple",
-        "x": 5900,
-        "scale": 1.0
-      },
-      {
-        "id": 12,
-        "type": "pine",
-        "x": 6500,
-        "scale": 1.05
-      },
-      {
-        "id": 13,
-        "type": "oak",
-        "x": 7000,
-        "scale": 0.95
-      }
-    ],
-    "checkpoints": [2000, 4000, 6000],
-    "secretBadge": { "x": 3120, "y": 150 },
-    "goal": {
-      "x": 7558,
-      "y": 304,
-      "w": 96,
-      "h": 160
-    },
-    "bgSections": [],
-    "beams": [],
-    "warpDoors": []
-  }
-];
-
-  const ROOM_NAMES = {
-    Lv2_GrandEntry: 'Grand Entry', Lv2_HallA: 'Front Hall', Lv2_Kitchen: 'Kitchen',
-    Lv2_GreatRoom: 'Great Room', Lv2_Library: 'Library', Lv2_HallB: 'Center Hall',
-    Lv2_Theater: 'Theater', Lv2_HallC: 'Back Hall', Lv2_PrimaryBed: 'Primary Suite',
-    Lv2_GuestBed: 'Guest Room', Lv2_Gym: 'Home Gym', Lv2_Mudroom: 'Mudroom',
-  };
-
-  // Keypads go 70 px into each room unless the art there needs something else
-  const KEYPAD_SPOTS = {
-    Lv2_Kitchen: { x: 2810, y: 348 },  // backsplash, clear of the upper cabinets
-    Lv2_Mudroom: { x: 9500 },          // beside the exit door, not on the cubbies
-  };
-
-  // Level 4 reuses the Trim Out house. Every room starts dark; programming the
-  // keypad by its doorway (jump to reach it) lights the room.
-  function buildCommissioningLevel(base) {
-    const lvl = JSON.parse(JSON.stringify(base));
-    lvl.name = 'Commissioning';
-    lvl.goalText = 'Jump to each keypad to bring the house to life';
-    lvl.theme = 'commissioning';
-    lvl.collectiblesInit = [];
-    lvl.installs = [];
-    lvl.secretBadge = { x: 7740, y: 200 }; // above the king bed
-    lvl.keypads = lvl.bgSections
-      .filter(sec => sec.type === 'interior')
-      .map(sec => ({ x: sec.x + 70, y: 272, w: 32, h: 32, room: sec.bg, ...(KEYPAD_SPOTS[sec.bg] || {}) }));
-    lvl.hazards = [
-      { type: 'roomba', x: 2400, y: 444, w: 56, h: 20, minX: 2250, maxX: 2700, vx: 1.6 },
-      { type: 'roomba', x: 2900, y: 444, w: 56, h: 20, minX: 2760, maxX: 3180, vx: -1.8 },
-      { type: 'roomba', x: 7000, y: 444, w: 56, h: 20, minX: 6820, maxX: 7260, vx: 2.0 },
-      { type: 'roomba', x: 9300, y: 444, w: 56, h: 20, minX: 9220, maxX: 9500, vx: -1.6 },
-    ];
-    return lvl;
-  }
-  LEVELS.push(buildCommissioningLevel(LEVELS[1]));
+  const { TYPES, KEYPAD_POINTS, STAT_FOR_TYPE, LEVELS, ROOM_NAMES } = window.SIS_DATA;
   ASSET_BUNDLES.level4 = ASSET_BUNDLES.level2.slice();
 
   // Trim Out and Commissioning share the chroma-keyed house renderer.
@@ -2244,6 +1296,10 @@
     collectibles = lvl.collectiblesInit.map(c => ({ ...c, taken: false, bob: Math.random() * Math.PI * 2 }));
     if (lvl.secretBadge) collectibles.push({ ...lvl.secretBadge, t: 'badge', taken: false, bob: 0 });
     hazards   = lvl.hazards.map(h => ({ ...h, phase: Math.random() * Math.PI * 2, t: 0 }));
+    // Run log for the leaderboard: a level left by a secret door or Continue stays in the log
+    if (options.keepScore && curEntry) runLog.push(curEntry);
+    else if (!options.keepScore) runLog = [];
+    curEntry = newEntry(idx);
     installs  = (lvl.installs || []).map(m => ({ ...m, done: false }));
     keypads   = (lvl.keypads || []).map(k => ({ ...k, done: false, litT: 0 }));
     carrying  = { tv: 0, speaker: 0 };
@@ -2372,6 +1428,8 @@
   // Fresh run (new game or after Game Over / the final level)
   function startGameAtLevel(idx) {
     runStats = newRunStats();
+    curEntry = null;
+    startRun();
     loadLevel(Math.max(0, Math.min(LEVELS.length - 1, idx)));
     state = STATE.PLAY;
     if (typeof sfxLevelStart === 'function') sfxLevelStart();
@@ -2660,6 +1718,8 @@
         c.taken = true;
         sfxPickup(c.t);
         sparkle(c.x, c.y, PICKUP_COLOR[c.t] || '#ffffff', c.t === 'badge' ? 22 : 10);
+        if (c.t === 'badge') curEntry.badge = 1;
+        else curEntry.pickups[c.t] = (curEntry.pickups[c.t] || 0) + 1;
         if (c.t === 'tv' || c.t === 'speaker') {
           // Carried until installed at a mount point; points come on install
           carrying[c.t]++;
@@ -2681,6 +1741,7 @@
       if (Math.abs((player.x + player.w / 2) - m.x) < 40) {
         m.done = true;
         carrying[m.t]--;
+        curEntry.installs[m.t]++;
         const pts = TYPES[m.t].points;
         score += pts; updateScoreHud();
         runStats[m.t === 'tv' ? 'tvs' : 'speakers']++;
@@ -2695,6 +1756,7 @@
       if (k.done) { k.litT = Math.min(1, k.litT + 0.04); continue; }
       if (rectsOverlap(player, k)) {
         k.done = true;
+        curEntry.keypads++;
         score += KEYPAD_POINTS; updateScoreHud();
         runStats.keypads++;
         sfxInstall();
@@ -2756,6 +1818,9 @@
         + keypads.filter(k => !k.done).length;
       const timeBonus = Math.floor(timeRemaining); // 1 point per second saved
       let note = '';
+      curEntry.completed = true;
+      curEntry.clean = remaining === 0;
+      curEntry.timeBonus = timeBonus;
       if (remaining === 0) { score += 500; note = 'Clean Punch List +500'; }
       else { note = remaining + ' item(s) left behind'; }
       if (timeBonus > 0) {
@@ -2788,8 +1853,7 @@
       } catch (e) {}
       // Show top-5 leaderboard only when the run is fully complete
       if (isLastLevel) {
-        submitToLeaderboard(playerName, score);
-        renderLeaderboard(playerName, score);
+        finishRunOnBoard();
         renderRunSummary(true);
       } else {
         const lbEl = document.getElementById('leaderboard');
@@ -2847,108 +1911,115 @@
     updateProgress();
   }
 
-  // ---------- Leaderboard (cloud-backed via Google Apps Script) ----------
-  // Scores are stored in a shared Google Sheet, accessed via a deployed Apps Script
-  // web app (doGet returns top-200 entries; doPost appends a row). localStorage caches
-  // the most recent fetch as a fallback for offline play.
-  const LB_KEY = 'punchlist.leaderboard.v3'; // bumped — cache shape may differ from v2 local-only
-  const LB_URL = 'https://script.google.com/macros/s/AKfycbw_6pR2KAZPoqxzg9lYhuvZLA_eOu56_mJCWLQ4QZWDWNhtWwPARK9j1jjQoIBZxFys/exec';
-
-  // Tri-state: 'idle' (never fetched), 'loading' (fetch in flight), 'done' (resolved or failed at least once)
-  let _lbFetchState = 'idle';
-  function getLeaderboardCached() {
-    try {
-      const raw = localStorage.getItem(LB_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
+  // ---------- Leaderboard (Netlify Function + Netlify Blobs) ----------
+  // Starting a game asks the server for a single-use run id. Finishing sends
+  // the run log (what was done in each level), and the server recomputes the
+  // score from it before it goes on the board. See netlify/functions/leaderboard.mjs.
+  const LB_HOST = 'https://si-simulator.netlify.app';
+  const API = (() => {
+    const q = new URLSearchParams(location.search).get('api');
+    if (q !== null) return q;                  // ?api= override for local testing
+    if (location.hostname.endsWith('si-simulator.netlify.app') || location.port === '8888') return '';
+    return LB_HOST;
+  })();
+  let lbState = 'idle';   // idle | loading | done | error
+  let lbTop = [];
+  let lbTotal = 0;
+  let lbYou = null;       // { id, rank, total } once this run is on the board
+  let lbMessage = '';     // why a score wasn't posted, if it wasn't
+  let runId = null;
+  let runLog = [];        // finished (or left) levels this run
+  let curEntry = null;    // level in progress
+  function newEntry(level) {
+    return { level, pickups: {}, installs: { tv: 0, speaker: 0 }, keypads: 0, badge: 0, completed: false, clean: false, timeBonus: 0 };
   }
-  function _writeCache(arr) {
-    try { localStorage.setItem(LB_KEY, JSON.stringify(arr.slice(0, 200))); } catch (e) {}
+  function startRun() {
+    runId = null;
+    fetch(API + '/api/runs', { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.runId) runId = d.runId; })
+      .catch(() => {});
   }
-  // Async — fetches the latest top-200 from the server, updates cache, returns the list.
-  // Falls back to the local cache on any error (offline, throttled, server hiccup).
-  function fetchLeaderboardRemote() {
-    _lbFetchState = 'loading';
-    return fetch(LB_URL + '?limit=200', { method: 'GET' })
+  function fetchLeaderboard() {
+    lbState = 'loading';
+    return fetch(API + '/api/scores?limit=10')
       .then(r => r.json())
-      .then(arr => {
-        _lbFetchState = 'done';
-        if (Array.isArray(arr)) { _writeCache(arr); return arr; }
-        _lbFetchState = 'error';
-        return getLeaderboardCached();
+      .then(d => { lbTop = Array.isArray(d.top) ? d.top : []; lbTotal = d.total || 0; lbState = 'done'; })
+      .catch(() => { lbState = 'error'; });
+  }
+  // Post this run. Guests and Relaxed mode runs stay off the board.
+  function submitRun() {
+    lbYou = null; lbMessage = '';
+    if (relaxed || !playerName) return Promise.resolve();
+    if (!runId) { lbMessage = 'The leaderboard was offline when this run started, so it could not be posted'; return Promise.resolve(); }
+    const body = {
+      runId, name: playerName.slice(0, 14), character: chosenChar, score,
+      log: curEntry ? runLog.concat([curEntry]) : runLog,
+    };
+    runId = null; // single use
+    return fetch(API + '/api/scores', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          lbYou = { id: d.id, rank: d.rank, total: d.total };
+          lbTop = d.top || lbTop; lbTotal = d.total || lbTotal; lbState = 'done';
+        } else {
+          lbMessage = d.error || 'Your score could not be posted';
+        }
       })
-      .catch(() => { _lbFetchState = 'error'; return getLeaderboardCached(); });
+      .catch(() => { lbMessage = 'Could not reach the leaderboard, so this score was not posted'; });
   }
-  // Submit a score: optimistic local update, then fire-and-forget POST to the script.
-  // Apps Script web apps require text/plain content-type to avoid CORS preflight.
-  function submitToLeaderboard(name, scr) {
-    const entry = { name: String(name || '').slice(0, 14), score: Math.max(0, scr | 0), ts: Date.now() };
-    if (!entry.name || relaxed) return getLeaderboardCached();
-    const optimistic = getLeaderboardCached().slice();
-    optimistic.push(entry);
-    optimistic.sort((a, b) => b.score - a.score);
-    _writeCache(optimistic);
-    fetch(LB_URL, {
-      method: 'POST',
-      body: JSON.stringify({ name: entry.name, score: entry.score }),
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    }).catch(() => {});
-    return optimistic;
-  }
-  // Names come from a shared sheet anyone can post to, so never trust them as HTML.
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
   }
-  // Build the top-5 leaderboard HTML markup. Pass a name+score to highlight a specific row.
-  function _leaderboardHtml(highlightName, highlightScore, showTitle) {
-    const lb = getLeaderboardCached().slice(0, 5);
-    if (lb.length === 0) {
-      // 'idle' or 'loading' before any fetch completes → show loading.
-      // 'done' with empty result → show "be the first" prompt instead of forever-loading.
-      const msg = _lbFetchState === 'error' ? 'Leaderboard is offline right now'
-        : _lbFetchState === 'done' ? 'No scores yet. Be the first!'
+  // End screen shows the top 5 (plus your row if you're lower); the menu shows 10
+  function _leaderboardHtml(showTitle) {
+    const rows = showTitle ? 5 : 10;
+    let html = showTitle ? '<div class="lb-title">Top 5 Leaderboard</div>' : '';
+    if (lbTop.length === 0) {
+      const msg = lbState === 'error' ? 'Leaderboard is offline right now'
+        : lbState === 'done' ? 'No scores yet. Be the first!'
         : 'Loading scores…';
-      return '<div class="lb-title" style="opacity:0.6;">' + msg + '</div>';
+      html += '<div class="lb-title" style="opacity:0.6;">' + msg + '</div>';
+    } else {
+      html += '<table>';
+      lbTop.slice(0, rows).forEach((e, i) => {
+        const isYou = lbYou && e.id === lbYou.id;
+        html += '<tr class="' + (isYou ? 'you' : '') + '">' +
+          '<td class="rank">' + (i + 1) + '.</td>' +
+          '<td class="name">' + escapeHtml(e.name) + '</td>' +
+          '<td class="score">' + Number(e.score).toLocaleString() + '</td>' +
+          '</tr>';
+      });
+      html += '</table>';
     }
-    let highlightedYet = false;
-    let html = '';
-    if (showTitle) html += '<div class="lb-title">Top 5 Leaderboard</div>';
-    html += '<table>';
-    lb.forEach((entry, i) => {
-      const isYou = !highlightedYet && entry.name === highlightName && entry.score === highlightScore;
-      if (isYou) highlightedYet = true;
-      html += '<tr class="' + (isYou ? 'you' : '') + '">' +
-        '<td class="rank">' + (i + 1) + '.</td>' +
-        '<td class="name">' + escapeHtml(entry.name || '—') + '</td>' +
-        '<td class="score">' + entry.score.toLocaleString() + '</td>' +
-        '</tr>';
-    });
-    html += '</table>';
+    if (lbYou && (!lbYou.rank || lbYou.rank > rows)) {
+      html += '<p class="lb-you">' + (lbYou.rank ? 'You placed #' + lbYou.rank + ' of ' + lbYou.total.toLocaleString()
+        : 'Posted. Keep going to crack the top 100') + '</p>';
+    }
+    if (lbMessage) html += '<p class="lb-you">' + escapeHtml(lbMessage) + '</p>';
+    else if (lbTotal && !lbYou) html += '<p class="lb-you">' + lbTotal.toLocaleString() + ' runs posted</p>';
     return html;
   }
-  // End-of-game inline leaderboard (under the score). Shows the cache instantly,
-  // then re-renders with fresh data when the network fetch returns.
-  function renderLeaderboard(highlightName, highlightScore) {
+  // End screen: post the run, then show the board with this run highlighted
+  function finishRunOnBoard() {
     const el = document.getElementById('leaderboard');
-    if (!el) return;
-    el.innerHTML = _leaderboardHtml(highlightName, highlightScore, true);
     el.style.display = 'block';
-    fetchLeaderboardRemote().then(() => {
-      el.innerHTML = _leaderboardHtml(highlightName, highlightScore, true);
-    });
+    el.innerHTML = '<div class="lb-title" style="opacity:0.6;">Posting your score…</div>';
+    submitRun()
+      .then(() => (lbYou ? null : fetchLeaderboard()))
+      .then(() => { el.innerHTML = _leaderboardHtml(true); });
   }
-  // Modal leaderboard (opened from the home menu) — same instant-then-refresh pattern.
+  // Modal leaderboard (opened from the home menu)
   function renderLeaderboardModal() {
     const el = document.getElementById('leaderboard-modal');
     if (!el) return;
-    el.innerHTML = _leaderboardHtml(null, null, false);
-    fetchLeaderboardRemote().then(() => {
-      el.innerHTML = _leaderboardHtml(null, null, false);
-    });
+    el.innerHTML = _leaderboardHtml(false);
+    fetchLeaderboard().then(() => { el.innerHTML = _leaderboardHtml(false); });
   }
-  // Pre-warm the cache once at page load so the first leaderboard view is instant.
-  fetchLeaderboardRemote();
+  fetchLeaderboard();
 
   // End-of-run punch list, shown after the final level or a Game Over
   function renderRunSummary(show) {
@@ -3009,8 +2080,7 @@
       endNote.textContent = '';
       const againBtn = document.getElementById('again-btn');
       if (againBtn) againBtn.textContent = 'Start Over';
-      submitToLeaderboard(playerName, score);
-      renderLeaderboard(playerName, score);
+      finishRunOnBoard();
       renderRunSummary(true);
       setOverlay(endOverlay, true);
     } else {

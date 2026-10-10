@@ -47,7 +47,29 @@ URL options: `?level=2`, `?level=3` or `?level=4` starts on that level. `?debug`
 
 ## Leaderboard
 
-Scores post to a Google Apps Script web app backed by a Google Sheet (`LB_URL` in `index.html`). The last 200 scores are cached in the browser. `leaderboard/Code.gs` has setup steps and validates names and scores before saving them.
+Scores are shared by everyone who plays. The game is hosted twice, with one leaderboard behind both:
+
+- https://si-simulator.netlify.app - Netlify project `si-simulator` (System Integrators team). Hosts the game and the leaderboard API.
+- https://system-integrators-vermont.github.io/Simulator/ - GitHub Pages, updates on every push to `main`, and calls the API above.
+
+How a score gets on the board (`netlify/functions/leaderboard.mjs`):
+
+1. Starting a game calls `POST /api/runs`, which returns a single-use run id and records the start time.
+2. Finishing (or a Game Over) sends `POST /api/scores` with the name and a run log: what was collected, installed and programmed in each level, plus clean and time bonuses.
+3. The server recomputes the score from the log with the same level data the game uses (`game-data.js`), and rejects the run if any count is higher than the level holds, the levels are out of order, the clock bonuses are impossible, or the run finished faster than the level clocks allow (`leaderboard/validate.mjs`).
+4. Accepted runs are stored in Netlify Blobs, one entry per score so simultaneous finishes can't overwrite each other. Names are cleaned and filtered. Each player is limited to 60 games and 30 posted scores an hour.
+
+Guests (no name) and Relaxed mode runs are not posted. A determined cheater could still script a perfect-looking run, but they can't post a score higher than a perfect run, and they have to wait out the real clock to do it.
+
+Run the checks with `npm test`. To run the API locally, `npm install` then `netlify dev` (http://localhost:8888).
+
+### Deploying the API
+
+GitHub Pages updates itself. The Netlify copy deploys from this folder:
+
+```bash
+netlify deploy --prod --dir . --functions netlify/functions
+```
 
 ## Credits
 

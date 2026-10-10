@@ -1,0 +1,12 @@
+{
+  "name": "system-integrators-simulator",
+  "private": true,
+  "description": "Browser game by System Integrators Vermont, with a Netlify Functions leaderboard",
+  "scripts": {
+    "dev": "netlify dev",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "@netlify/blobs": "11.1.1"
+  }
+}

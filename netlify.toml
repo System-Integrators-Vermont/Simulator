@@ -1,0 +1,15 @@
+# Netlify project: si-simulator (the game plus its leaderboard API)
+# No build step. The site is the repo itself; netlify/functions/leaderboard.mjs
+# is the API and stores scores in Netlify Blobs.
+[build]
+  publish = "."
+  command = "echo 'no build step'"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["game-data.js", "leaderboard/validate.mjs"]
+
+[dev]
+  port = 8888
+  publish = "."
+  framework = "#static"
